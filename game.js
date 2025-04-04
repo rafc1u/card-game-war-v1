@@ -31,7 +31,9 @@ let currentGame = {
     myCards: [],
     isPlayingCard: false,  // Track if a card play is in progress
     appCheckVerified: false, // Track if App Check verification passed
-    isResolvingRound: false // Flag to prevent multiple winner checks
+    isResolvingRound: false, // Flag to prevent multiple winner checks
+    debugMode: false,  // Flag for debug mode
+    forceWarCards: false  // Flag to force war condition
 };
 
 // Card values and suits
@@ -55,6 +57,15 @@ startGameBtn.addEventListener('click', handleStartGame);
 playCardBtn.addEventListener('click', handlePlayCard);
 exitGameBtn.addEventListener('click', handleExitGame);
 copyUrlBtn.addEventListener('click', handleCopyUrl);
+
+// Add debug key listener for war testing
+document.addEventListener('keydown', function(event) {
+    if (event.key.toLowerCase() === 'w') {
+        currentGame.forceWarCards = true;
+        console.log('WAR MODE ACTIVATED: Next cards will be identical to force war!');
+        alert('WAR MODE ACTIVATED: Next cards will be identical!');
+    }
+});
 
 // Setup App Check after Firebase is initialized
 function setupAppCheck() {
@@ -380,6 +391,13 @@ function handlePlayCard() {
     
     // Create a copy of the card for display while database updates
     const cardCopy = { ...topCard };
+    
+    // Debug mode: Force card to be a 10 of hearts for war testing
+    if (currentGame.forceWarCards) {
+        console.log('Debug mode: Forcing card to 10♥');
+        cardCopy.value = '10';
+        cardCopy.suit = '♥';
+    }
     
     // Update local state first (optimistic update)
     const updatedCards = [...currentGame.myCards];
@@ -959,6 +977,15 @@ function handleWarPlayCard() {
     // Create a copy of the card
     const cardCopy = { ...topCard };
     
+    // Debug mode: Force card to be a 10 of hearts for war testing
+    if (currentGame.forceWarCards) {
+        console.log('Debug mode: Forcing war card to 10♥');
+        cardCopy.value = '10';
+        cardCopy.suit = '♥';
+        // Turn off debug mode after using it once in war
+        currentGame.forceWarCards = false;
+    }
+    
     // Update local state first (optimistic update)
     const updatedCards = [...currentGame.myCards];
     updatedCards.shift();
@@ -1145,7 +1172,9 @@ function resetGameState() {
         myCards: [],
         isPlayingCard: false,  // Track if a card play is in progress
         appCheckVerified: false, // Track if App Check verification passed
-        isResolvingRound: false // Flag to prevent multiple winner checks
+        isResolvingRound: false, // Flag to prevent multiple winner checks
+        debugMode: false,  // Reset debug mode
+        forceWarCards: false  // Reset force war flag
     };
     
     // Reset UI elements
