@@ -30,7 +30,8 @@ let currentGame = {
     deck: [],
     myCards: [],
     isPlayingCard: false,  // Track if a card play is in progress
-    appCheckVerified: false // Track if App Check verification passed
+    appCheckVerified: false, // Track if App Check verification passed
+    isResolvingRound: false // Flag to prevent multiple winner checks
 };
 
 // Card values and suits
@@ -191,7 +192,7 @@ async function handleCreateGame() {
         const gameCode = await checkAppCheckBeforeOperation(
             () => createGame(),
             () => {
-                alert('Security verification failed. Please wait while we verify your browser or refresh the page.');
+                console.warn('App Check verification required for createGame');
                 return Promise.reject(new Error('App Check verification required'));
             }
         );
@@ -228,7 +229,7 @@ async function handleJoinGame() {
         await checkAppCheckBeforeOperation(
             () => joinGame(gameCode),
             () => {
-                alert('Security verification failed. Please wait while we verify your browser or refresh the page.');
+                console.warn('App Check verification required for joinGame');
                 return Promise.reject(new Error('App Check verification required'));
             }
         );
@@ -270,7 +271,7 @@ async function handleSetName() {
         await checkAppCheckBeforeOperation(
             () => setPlayerName(currentGame.gameCode, currentGame.playerId, name),
             () => {
-                alert('Security verification failed. Please wait while we verify your browser or refresh the page.');
+                console.warn('App Check verification required for setPlayerName');
                 return Promise.reject(new Error('App Check verification required'));
             }
         );
@@ -324,7 +325,7 @@ async function handleStartGame() {
             // Start the game
             await startGame(currentGame.gameCode);
         }, () => {
-            alert('Security verification failed. Please wait while we verify your browser or refresh the page.');
+            console.warn('App Check verification required for startGame');
             return Promise.reject(new Error('App Check verification required'));
         });
     } catch (error) {
@@ -454,14 +455,21 @@ function handleGameStateChange(gameData) {
                 }, 1000);
             }
         } else {
-            hideWarAnimation();
+            hideWarAnimation(); // Ensure it's hidden if not in war state
             
             // Regular round checking
             if (gameData.battleCards && 
+                Object.keys(gameData.players).length > 0 && // Ensure players exist
                 Object.keys(gameData.battleCards).length === Object.keys(gameData.players).length) {
-                setTimeout(() => {
-                    determineRoundWinner();
-                }, 1000);
+                
+                // Check if round winner calculation is already in progress
+                if (!currentGame.isResolvingRound) {
+                    currentGame.isResolvingRound = true;
+                    setTimeout(() => {
+                        determineRoundWinner();
+                        currentGame.isResolvingRound = false; // Reset flag
+                    }, 1000);
+                }
             }
         }
     } else if (gameData.status === 'ended') {
@@ -1234,7 +1242,8 @@ function resetGameState() {
         deck: [],
         myCards: [],
         isPlayingCard: false,  // Track if a card play is in progress
-        appCheckVerified: false // Track if App Check verification passed
+        appCheckVerified: false, // Track if App Check verification passed
+        isResolvingRound: false // Flag to prevent multiple winner checks
     };
     
     // Reset UI elements
