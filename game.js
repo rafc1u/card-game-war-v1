@@ -55,23 +55,31 @@ playCardBtn.addEventListener('click', handlePlayCard);
 exitGameBtn.addEventListener('click', handleExitGame);
 copyUrlBtn.addEventListener('click', handleCopyUrl);
 
-// Track App Check Status
-if (typeof firebase !== 'undefined' && firebase.appCheck) {
-    try {
-        // Listen for App Check state
-        firebase.appCheck().onTokenChanged(
-            (token) => {
-                currentGame.appCheckVerified = true;
-                console.log('App Check verified successfully');
-            },
-            (error) => {
-                currentGame.appCheckVerified = false;
-                console.error('App Check error:', error);
-                showAppCheckError(error);
-            }
-        );
-    } catch (error) {
-        console.error('Failed to setup App Check listener:', error);
+// Setup App Check after Firebase is initialized
+function setupAppCheck() {
+    if (typeof firebase !== 'undefined' && firebase.app && firebase.appCheck) {
+        try {
+            // Listen for App Check state
+            firebase.appCheck().onTokenChanged(
+                (token) => {
+                    currentGame.appCheckVerified = true;
+                    console.log('App Check verified successfully');
+                },
+                (error) => {
+                    currentGame.appCheckVerified = false;
+                    console.error('App Check error:', error);
+                    showAppCheckError(error);
+                }
+            );
+        } catch (error) {
+            console.error('Failed to setup App Check listener:', error);
+            // Allow the game to continue even if App Check setup fails
+            currentGame.appCheckVerified = true;
+        }
+    } else {
+        console.warn('Firebase App Check not available, proceeding without verification');
+        // Allow the game to continue without App Check
+        currentGame.appCheckVerified = true;
     }
 }
 
@@ -100,12 +108,8 @@ function showAppCheckError(error) {
 
 // Check App Check verification before database operations
 function checkAppCheckBeforeOperation(operation, fallback = null) {
-    // In development mode, allow operations without App Check
-    if (window.location.hostname === 'localhost') {
-        return operation();
-    }
-    
-    if (currentGame.appCheckVerified) {
+    // In development mode or if App Check is unavailable, allow operations
+    if (window.location.hostname === 'localhost' || currentGame.appCheckVerified) {
         return operation();
     } else {
         console.warn('Operation attempted before App Check verification');
@@ -116,6 +120,17 @@ function checkAppCheckBeforeOperation(operation, fallback = null) {
         return Promise.reject(new Error('App Check verification required'));
     }
 }
+
+// Initialize - check URL for game code and setup App Check
+document.addEventListener('DOMContentLoaded', () => {
+    // Setup App Check after Firebase is initialized
+    setTimeout(() => {
+        setupAppCheck();
+    }, 1000);
+    
+    // Check URL for game code
+    checkUrlForGameCode();
+});
 
 // Copy URL Handler
 function handleCopyUrl() {
@@ -241,11 +256,6 @@ function checkUrlForGameCode() {
         handleJoinGame();
     }
 }
-
-// Initialize - check URL for game code
-document.addEventListener('DOMContentLoaded', () => {
-    checkUrlForGameCode();
-});
 
 // Set Name Handler
 async function handleSetName() {
