@@ -34,11 +34,15 @@ body {
     transition: opacity 0.5s ease-in-out;
 }
 
+.hidden {
+    display: none !important;
+}
+
 .screen.hidden {
     opacity: 0;
     pointer-events: none;
-    position: absolute; /* Prevent layout shifts during transitions */
-    width: calc(100% - 40px); /* Adjust width based on body padding */
+    position: absolute;
+    width: calc(100% - 40px);
     max-width: 1200px;
 }
 
@@ -256,6 +260,7 @@ input[type="text"] {
     color: #f94144;
     text-shadow: 0 0 20px rgba(249, 65, 68, 0.8);
     animation: pulsate 1s infinite alternate;
+    z-index: 100;
 }
 
 .blood {

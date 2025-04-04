@@ -517,6 +517,9 @@ function updatePlayersList(players) {
 function setupGameBoard() {
     playersArea.innerHTML = '';
     
+    // Ensure WAR animation is hidden at start
+    hideWarAnimation();
+    
     // Create player boxes
     Object.keys(currentGame.players).forEach(playerId => {
         const player = currentGame.players[playerId];
@@ -1018,171 +1021,6 @@ function resolveWarWinner() {
     }
 }
 
-// Award War Cards to Winner
-function awardWarCardsToWinner(winnerId) {
-    if (!currentGame.gameState) return;
-    
-    // Combine all cards: initial battle cards + war cards
-    const allCards = [
-        ...(currentGame.gameState.warPot || []),
-        ...Object.values(currentGame.gameState.warCards || {})
-    ];
-    
-    // Get winner's current cards
-    const winner = currentGame.players[winnerId];
-    let winnerCards = winner.cards || [];
-    
-    // Ensure it's an array
-    if (!Array.isArray(winnerCards)) {
-        winnerCards = [];
-    }
-    
-    // Add all war cards to winner's pile
-    winnerCards = [...winnerCards, ...allCards];
-    
-    // Update winner's cards in database
-    updatePlayerState(currentGame.gameCode, winnerId, {
-        cards: winnerCards
-    });
-    
-    // Update my cards if I'm the winner
-    if (winnerId === currentGame.playerId) {
-        currentGame.myCards = winnerCards;
-    }
-    
-    // Clear war state and update round
-    updateGameState(currentGame.gameCode, {
-        warPot: null,
-        warCards: null,
-        warState: false,
-        warPlayers: null,
-        warStage: null,
-        currentRound: (currentGame.gameState.currentRound || 0) + 1
-    });
-    
-    // Check for game end
-    checkGameEnd();
-}
-
-// Award Cards to Winner
-function awardCardsToWinner(winnerId) {
-    if (!currentGame.gameState || !currentGame.gameState.battleCards) return;
-    
-    // Get all battle cards as an array
-    const cardsWon = Object.values(currentGame.gameState.battleCards);
-    
-    // Get winner's current cards
-    const winner = currentGame.players[winnerId];
-    let winnerCards = winner.cards || [];
-    
-    // Ensure it's an array
-    if (!Array.isArray(winnerCards)) {
-        winnerCards = [];
-    }
-    
-    // Add won cards to winner's pile
-    winnerCards = [...winnerCards, ...cardsWon];
-    
-    // Update winner's cards in database
-    updatePlayerState(currentGame.gameCode, winnerId, {
-        cards: winnerCards
-    });
-    
-    // Update my cards if I'm the winner
-    if (winnerId === currentGame.playerId) {
-        currentGame.myCards = winnerCards;
-    }
-    
-    // Clear battle cards and update round
-    updateGameState(currentGame.gameCode, {
-        battleCards: null,
-        warState: false,
-        currentRound: (currentGame.gameState.currentRound || 0) + 1
-    });
-    
-    // Check for game end
-    checkGameEnd();
-}
-
-// Check Game End
-function checkGameEnd() {
-    if (!currentGame.players) return;
-    
-    // Count players with cards
-    let playersWithCards = 0;
-    let lastPlayerWithCards = null;
-    
-    Object.keys(currentGame.players).forEach(playerId => {
-        const player = currentGame.players[playerId];
-        if (player.cards && player.cards.length > 0) {
-            playersWithCards++;
-            lastPlayerWithCards = playerId;
-        }
-    });
-    
-    // If only one player has cards, they win
-    if (playersWithCards === 1) {
-        const winnerName = currentGame.players[lastPlayerWithCards].name;
-        alert(`Game Over! ${winnerName} wins!`);
-        
-        // End the game
-        updateGameState(currentGame.gameCode, {
-            status: 'ended',
-            winner: lastPlayerWithCards
-        });
-    }
-}
-
-// Create a deck of cards
-function createDeck() {
-    const deck = [];
-    
-    for (const suit of CARD_SUITS) {
-        for (const value of CARD_VALUES) {
-            deck.push({
-                suit,
-                value
-            });
-        }
-    }
-    
-    return deck;
-}
-
-// Shuffle the deck
-function shuffleDeck(deck) {
-    const shuffled = [...deck];
-    
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    
-    return shuffled;
-}
-
-// Deal cards to players
-function dealCards(deck, playerIds) {
-    const dealtCards = {};
-    
-    // Initialize empty arrays for each player
-    playerIds.forEach(playerId => {
-        dealtCards[playerId] = [];
-    });
-    
-    // Deal cards one at a time to each player
-    let currentPlayerIndex = 0;
-    
-    for (const card of deck) {
-        const playerId = playerIds[currentPlayerIndex];
-        dealtCards[playerId].push(card);
-        
-        currentPlayerIndex = (currentPlayerIndex + 1) % playerIds.length;
-    }
-    
-    return dealtCards;
-}
-
 // Show War Animation
 function showWarAnimation() {
     warAnimation.classList.remove('hidden');
@@ -1191,6 +1029,13 @@ function showWarAnimation() {
     for (let i = 0; i < 15; i++) {
         createBloodDrop();
     }
+    
+    // Automatically hide war animation after 3 seconds in case it gets stuck
+    setTimeout(() => {
+        if (!currentGame.gameState?.warState) {
+            hideWarAnimation();
+        }
+    }, 3000);
 }
 
 // Hide War Animation
@@ -1283,4 +1128,96 @@ function showLobbyScreen() {
 
 function showGameScreen() {
     showScreen(gameScreen);
+}
+
+// Award War Cards to Winner
+function awardWarCardsToWinner(winnerId) {
+    if (!currentGame.gameState) return;
+    
+    // Ensure war animation is hidden
+    hideWarAnimation();
+    
+    // Combine all cards: initial battle cards + war cards
+    const allCards = [
+        ...(currentGame.gameState.warPot || []),
+        ...Object.values(currentGame.gameState.warCards || {})
+    ];
+    
+    // Get winner's current cards
+    const winner = currentGame.players[winnerId];
+    let winnerCards = winner.cards || [];
+    
+    // Ensure it's an array
+    if (!Array.isArray(winnerCards)) {
+        winnerCards = [];
+    }
+    
+    // Add all war cards to winner's pile
+    winnerCards = [...winnerCards, ...allCards];
+    
+    // Update winner's cards in database
+    updatePlayerState(currentGame.gameCode, winnerId, {
+        cards: winnerCards
+    });
+    
+    // Update my cards if I'm the winner
+    if (winnerId === currentGame.playerId) {
+        currentGame.myCards = winnerCards;
+    }
+    
+    // Clear war state and update round
+    updateGameState(currentGame.gameCode, {
+        warPot: null,
+        warCards: null,
+        warState: false,
+        warPlayers: null,
+        warStage: null,
+        currentRound: (currentGame.gameState.currentRound || 0) + 1
+    });
+    
+    // Check for game end
+    checkGameEnd();
+}
+
+// Award Cards to Winner
+function awardCardsToWinner(winnerId) {
+    if (!currentGame.gameState || !currentGame.gameState.battleCards) return;
+    
+    // Ensure war animation is hidden
+    hideWarAnimation();
+    
+    // Get all battle cards as an array
+    const cardsWon = Object.values(currentGame.gameState.battleCards);
+    
+    // Get winner's current cards
+    const winner = currentGame.players[winnerId];
+    let winnerCards = winner.cards || [];
+    
+    // Ensure it's an array
+    if (!Array.isArray(winnerCards)) {
+        winnerCards = [];
+    }
+    
+    // Add won cards to winner's pile
+    winnerCards = [...winnerCards, ...cardsWon];
+    
+    // Update winner's cards in database
+    updatePlayerState(currentGame.gameCode, winnerId, {
+        cards: winnerCards
+    });
+    
+    // Update my cards if I'm the winner
+    if (winnerId === currentGame.playerId) {
+        currentGame.myCards = winnerCards;
+    }
+    
+    // Clear battle cards and update round
+    updateGameState(currentGame.gameCode, {
+        battleCards: null,
+        warState: false,
+        currentRound: (currentGame.gameState.currentRound || 0) + 1
+    });
+    
+    // Check for game end
+    checkGameEnd();
 } 
