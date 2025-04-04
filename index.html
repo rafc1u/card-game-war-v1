@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>War Card Game - Multiplayer</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #335c33; /* Green felt color */
+            color: white;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        #status {
+            margin: 10px 0;
+            font-size: 1.2em;
+            min-height: 1.5em;
+            text-align: center;
+            font-weight: bold;
+            width: 90%;
+            max-width: 600px;
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        #lobbySection, #gameSection {
+             width: 90%;
+             max-width: 800px;
+             margin-bottom: 15px;
+             background-color: rgba(0, 0, 0, 0.1);
+             padding: 15px;
+             border-radius: 8px;
+             border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+         #lobbySection h2, #lobbySection h3 {
+             text-align: center;
+             margin-bottom: 10px;
+         }
+
+         #nameEntryArea {
+             display: flex;
+             justify-content: center;
+             align-items: center;
+             gap: 10px;
+             margin-bottom: 15px;
+         }
+         #nameEntryArea input {
+             padding: 8px;
+             border-radius: 4px;
+             border: 1px solid #ccc;
+         }
+         #nameEntryArea button {
+             padding: 8px 12px;
+         }
+
+         #playerList {
+             list-style: none;
+             padding: 0;
+             margin-bottom: 15px;
+             text-align: center;
+         }
+          #playerList li {
+              background-color: rgba(255, 255, 255, 0.1);
+              margin: 5px auto;
+              padding: 5px 10px;
+              border-radius: 4px;
+              width: 80%;
+              max-width: 300px;
+              font-weight: bold;
+          }
+          #playerList li.is-host::after {
+              content: ' (Host)';
+              font-weight: normal;
+              color: #ffdd57; /* Yellowish */
+          }
+
+
+         #shareLinkContainer {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 0.9em;
+            word-wrap: break-word;
+         }
+         #shareLinkContainer input {
+             width: 80%;
+             max-width: 400px;
+             padding: 5px;
+             font-size: 0.9em;
+         }
+
+        .game-container {
+            display: flex;
+            flex-direction: column; /* Stack elements vertically */
+            align-items: center; /* Center elements horizontally */
+            width: 100%;
+            position: relative;
+            min-height: 450px; /* Adjust height */
+            perspective: 1000px;
+        }
+
+        #opponentArea {
+            display: flex;
+            flex-wrap: wrap; /* Allow opponent cards to wrap */
+            justify-content: center; /* Center opponent cards */
+            gap: 15px;
+            margin-bottom: 20px;
+            width: 100%;
+            padding: 10px;
+            border-bottom: 1px dashed rgba(255,255,255,0.3);
+        }
+
+        .opponent-info {
+            font-size: 0.9em;
+            text-align: center;
+            min-width: 80px;
+        }
+         .opponent-info span { display: block; }
+         .opponent-info .op-name { font-weight: bold; }
+         .opponent-info .op-status { font-style: italic; font-size: 0.8em; min-height: 1em; } /* Space for 'Played' */
+
+
+        .player-area { /* This is now primarily for the current player */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 150px; /* Width of player's own area */
+            margin-top: 20px; /* Space below opponents */
+             border: 3px solid transparent; /* Placeholder for highlight */
+             padding: 10px;
+             border-radius: 5px;
+             background-color: rgba(0,0,0,0.2);
+        }
+         .player-area.active-turn { /* May not be needed if simultaneous play */
+            /* border-color: yellow; */
+         }
+
+        .player-area h2 {
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .deck-pile {
+            width: 70px;
+            height: 100px;
+            background-color: #b00;
+            border: 1px solid #fff;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            color: #fff;
+            position: relative;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+         .deck-pile:hover:not(.disabled) {
+             transform: scale(1.05);
+         }
+         .deck-pile.disabled {
+             cursor: not-allowed;
+             opacity: 0.6;
+         }
+         .deck-pile::before {
+             content: ''; position: absolute; inset: 5px;
+             border: 1px dashed #ffcccc; border-radius: 3px;
+        }
+
+        .card-count {
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .battlefield {
+            position: relative; /* Changed from absolute */
+            width: 90%; /* Take more width */
+            min-height: 150px; /* Ensure space */
+            margin: 20px 0; /* Space around battlefield */
+            display: flex;
+            flex-wrap: wrap; /* Allow cards to wrap */
+            justify-content: center;
+            align-items: center;
+            gap: 10px; /* Space between played cards */
+            border: 1px dashed rgba(255, 255, 255, 0.4);
+            padding: 10px;
+            border-radius: 5px;
+        }
+         .battlefield-card-container { /* Container for card + name */
+             display: flex;
+             flex-direction: column;
+             align-items: center;
+             position: relative; /* For absolute positioning of card inside */
+             width: 75px; /* Fit card */
+             height: 130px; /* Fit card + name */
+         }
+          .battlefield-card-container .player-name-label {
+              font-size: 0.8em;
+              margin-top: 5px;
+              font-weight: bold;
+              text-align: center;
+              color: #eee;
+              position: absolute; /* Position below card */
+              bottom: 0;
+              left: 0;
+              right: 0;
+          }
+
+
+        #warPileInfo {
+            position: absolute; /* Keep absolute for overlay */
+            bottom: -15px; /* Position below battlefield */
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.9em;
+            color: yellow;
+            background-color: rgba(0,0,0,0.5);
+            padding: 2px 5px;
+            border-radius: 3px;
+            z-index: 5; /* Ensure it's above cards if overlapping */
+        }
+
+        /* --- Card Styling (mostly unchanged) --- */
+        .card {
+            width: 70px;
+            height: 100px;
+            border-radius: 5px;
+            position: absolute; /* Position within battlefield-card-container */
+            top: 0; /* Align card top */
+            left: 50%;
+            transform: translateX(-50%); /* Center horizontally */
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            transform-style: preserve-3d;
+            transition: transform 0.6s, opacity 0.5s;
+            cursor: default;
+            opacity: 0;
+             transform: translateX(-50%) rotateY(0deg); /* Initial state */
+        }
+        .card.visible { opacity: 1; }
+        .card-face { position: absolute; width: 100%; height: 100%; border-radius: 5px; backface-visibility: hidden; overflow: hidden; box-sizing: border-box; }
+        .card-back { background-color: #b00; border: 1px solid #fff; }
+        .card-back::before { content: ''; position: absolute; inset: 5px; border: 1px dashed #ffcccc; border-radius: 3px; }
+        .card-front { background-color: white; color: black; transform: rotateY(180deg); display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 5px; font-weight: bold; border: 1px solid #ccc; }
+        .card.flipped { transform: translateX(-50%) rotateY(180deg); }
+        .card-front .rank { font-size: 18px; line-height: 1; }
+        .card-front .rank-top { align-self: flex-start; }
+        .card-front .rank-bottom { align-self: flex-end; transform: rotate(180deg); }
+        .card-front .suit { font-size: 28px; }
+        .card-front.red { color: red; }
+        .card-front.black { color: black; }
+        .card.war-down { border: 2px solid orange; }
+
+
+        /* --- Buttons --- */
+         button {
+             padding: 8px 15px;
+             background-color: #4CAF50;
+             color: white;
+             border: none;
+             border-radius: 5px;
+             cursor: pointer;
+             font-size: 1em;
+             transition: background-color 0.2s;
+         }
+         button:hover:not(:disabled) {
+             background-color: #45a049;
+         }
+         button:disabled {
+              background-color: #ccc;
+              cursor: not-allowed;
+          }
+
+          #hostControls {
+              margin-top: 15px;
+              text-align: center;
+          }
+          #hostControls button {
+              background-color: #ff9800; /* Orange for Start Game */
+          }
+
+          #resetGameBtnContainer {
+               margin-top: 20px;
+               text-align: center;
+           }
+           #resetGameBtnContainer button {
+               background-color: #f44336; /* Red for New Game */
+           }
+
+    </style>
+</head>
+<body>
+
+    <h1>War Card Game (Multiplayer Lobby)</h1>
+    <div id="status">Loading...</div>
+
+    <!-- Lobby Section (Visible before game starts) -->
+    <div id="lobbySection" style="display: none;">
+        <h2>Game Lobby</h2>
+
+        <div id="nameEntryArea">
+            <input type="text" id="playerNameInput" placeholder="Enter your name">
+            <button id="joinGameBtn">Join Game</button>
+            <button id="createGameBtn">Create Game</button>
+        </div>
+
+        <div id="shareLinkContainer" style="display: none;">
+            Share this link with your friends (up to 10 players total):
+            <input type="text" id="shareLinkInput" readonly>
+            <button onclick="copyShareLink()">Copy</button>
+        </div>
+
+        <h3>Players Joined:</h3>
+        <ul id="playerList">
+            <!-- Player names added dynamically -->
+        </ul>
+
+        <div id="hostControls" style="display: none;">
+            <button id="startGameBtn" disabled>Start Game (Need 2+ players)</button>
+        </div>
+    </div>
+
+    <!-- Game Section (Visible after game starts) -->
+    <div id="gameSection" style="display: none;">
+        <div class="game-container" id="gameArea">
+            <!-- Opponent Info Area -->
+            <div id="opponentArea">
+                <!-- Opponent info added dynamically -->
+            </div>
+
+             <!-- Battlefield Area -->
+             <div class="battlefield" id="battlefield">
+                  <!-- Cards added dynamically by JS -->
+                  <div id="warPileInfo"></div>
+             </div>
+
+            <!-- Current Player Area -->
+            <div class="player-area" id="myPlayerArea">
+                <h2 id="myPlayerNameDisplay">You</h2>
+                <div class="deck-pile" id="myDeckVisual"></div>
+                <div class="card-count" id="myCardCount">Cards: 0</div>
+            </div>
+
+        </div>
+         <div id="resetGameBtnContainer" style="display: none;">
+             <button id="resetGameBtn">Start New Game</button>
+         </div>
+    </div>
+
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
+    <!-- Optional: App Check is good practice but requires setup -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-check-compat.js"></script>
+
+    <script>
+
+        // --- Constants ---
+        const suits = ["♥", "♦", "♣", "♠"];
+        const ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+        const rankValues = { "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10, "J": 11, "Q": 12, "K": 13, "A": 14 };
+        const BATTLE_RESOLVE_DELAY = 2000; // ms to see cards before they go to winner
+        const WAR_REVEAL_DELAY = 1500; // ms to show face-down war cards before flipping/resolving
+        const MAX_PLAYERS = 10;
+
+        // --- Firebase Setup ---
+        const firebaseConfig = {
+			apiKey: "AIzaSyBLCRLrfzhCx1UAqeS5zFme6nKR1QqliPo",
+			authDomain: "war-card-game-ee38b.firebaseapp.com",
+			databaseURL: "https://war-card-game-ee38b-default-rtdb.europe-west1.firebasedatabase.app",
+			projectId: "war-card-game-ee38b",
+			storageBucket: "war-card-game-ee38b.firebasestorage.app",
+			messagingSenderId: "309067864017",
+			appId: "1:309067864017:web:548f34e496d26eaa4cf2f0",
+			measurementId: "G-LR49SSK3JB"
+		  };
+
+        // --- Global Variables ---
+        let db;
+        let gameRef = null;
+        let gameListener = null;
+        let currentGameData = null;
+        let gameId = null;
+        let myPlayerId = null; // Unique ID for this player in this game
+        let myPlayerName = null;
+        let cardElements = {}; // { containerId: { cardElement: element, nameLabel: element } }
+
+        // --- DOM Elements ---
+        const statusDiv = document.getElementById('status');
+        const lobbySection = document.getElementById('lobbySection');
+        const gameSection = document.getElementById('gameSection');
+        const nameEntryArea = document.getElementById('nameEntryArea');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const joinGameBtn = document.getElementById('joinGameBtn');
+        const createGameBtn = document.getElementById('createGameBtn');
+        const shareLinkContainer = document.getElementById('shareLinkContainer');
+        const shareLinkInput = document.getElementById('shareLinkInput');
+        const playerListUl = document.getElementById('playerList');
+        const hostControlsDiv = document.getElementById('hostControls');
+        const startGameBtn = document.getElementById('startGameBtn');
+
+        const opponentArea = document.getElementById('opponentArea');
+        const battlefield = document.getElementById('battlefield');
+        const warPileInfoDiv = document.getElementById('warPileInfo');
+        const myPlayerArea = document.getElementById('myPlayerArea');
+        const myPlayerNameDisplay = document.getElementById('myPlayerNameDisplay');
+        const myDeck = document.getElementById('myDeckVisual');
+        const myCount = document.getElementById('myCardCount');
+        const resetGameBtnContainer = document.getElementById('resetGameBtnContainer');
+        const resetGameBtn = document.getElementById('resetGameBtn');
+
+        // --- Utility Functions ---
+        function generateUniqueId(length = 6) {
+            return Math.random().toString(36).substring(2, 2 + length);
+        }
+
+        function createDeckData() {
+            const newDeck = [];
+            for (const suit of suits) {
+                for (const rank of ranks) {
+                    const cardId = `${rank}${suit}_${generateUniqueId(4)}`; // Unique ID per card instance
+                    newDeck.push({ id: cardId, suit, rank, value: rankValues[rank] });
+                }
+            }
+            return newDeck;
+        }
+
+        function shuffleDeck(deck) {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+        }
+
+        function copyShareLink() {
+            shareLinkInput.select();
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+        }
+
+        // Get player ID from localStorage for this game
+        function getStoredPlayerId(gId) {
+            try {
+                return localStorage.getItem(`warGame_${gId}_playerId`);
+            } catch (e) {
+                console.warn("Could not access localStorage:", e);
+                return null;
+            }
+        }
+
+        // Store player ID in localStorage for this game
+        function storePlayerId(gId, pId) {
+             try {
+                 localStorage.setItem(`warGame_${gId}_playerId`, pId);
+             } catch (e) {
+                 console.warn("Could not access localStorage:", e);
+             }
+        }
+
+        // --- Card Element Creation & Management ---
+        function createCardElement(cardData) {
+            // ... (createCardElement function remains exactly the same as before) ...
+             const cardDiv = document.createElement('div');
+            cardDiv.classList.add('card');
+            cardDiv.dataset.cardId = cardData.id; // Store card ID
+
+            // Card Back
+            const cardBack = document.createElement('div');
+            cardBack.classList.add('card-face', 'card-back');
+            cardBack.innerHTML = `<div style="position: absolute; inset: 5px; border: 1px dashed #ffcccc; border-radius: 3px;"></div>`;
+
+            // Card Front
+            const cardFront = document.createElement('div');
+            cardFront.classList.add('card-face', 'card-front');
+            const suitColor = (cardData.suit === "♥" || cardData.suit === "♦") ? 'red' : 'black';
+            cardFront.classList.add(suitColor);
+
+            cardFront.innerHTML = `
+                <span class="rank rank-top">${cardData.rank}</span>
+                <span class="suit">${cardData.suit}</span>
+                <span class="rank rank-bottom">${cardData.rank}</span>
+            `;
+
+            cardDiv.appendChild(cardBack);
+            cardDiv.appendChild(cardFront);
+
+            return cardDiv;
+        }
+
+         function clearBattlefieldVisuals() {
+             battlefield.innerHTML = ''; // Clear everything inside
+             // Re-add war pile info container if needed, or manage it separately
+             battlefield.appendChild(warPileInfoDiv);
+             cardElements = {}; // Clear tracked elements
+         }
+
+         // Displays a card on the battlefield IN A CONTAINER with a name label
+         function displayCardOnBattlefield(playerId, cardData, playerName, isFaceDown = false, isWarCard = false) {
+              if (!cardData || !playerId) return;
+
+              const containerId = `bf-card-${playerId}`;
+              let container = document.getElementById(containerId);
+              let cardEl;
+              let nameLabel;
+
+              // If container doesn't exist, create it
+              if (!container) {
+                  container = document.createElement('div');
+                  container.id = containerId;
+                  container.classList.add('battlefield-card-container');
+
+                  cardEl = createCardElement(cardData);
+                  nameLabel = document.createElement('div');
+                  nameLabel.classList.add('player-name-label');
+                  nameLabel.textContent = playerName || playerId; // Show name
+
+                  container.appendChild(cardEl);
+                  container.appendChild(nameLabel);
+                  battlefield.appendChild(container);
+
+                  cardElements[containerId] = { cardElement: cardEl, nameLabel: nameLabel };
+
+                   // Make visible slightly delayed
+                   setTimeout(() => cardEl.classList.add('visible'), 50);
+
+              } else {
+                  // Container exists, update card if needed (shouldn't happen often with unique IDs)
+                  cardEl = cardElements[containerId]?.cardElement;
+                  if (!cardEl || cardEl.dataset.cardId !== cardData.id) {
+                      // Replace card element if it's different
+                      if(cardEl) container.removeChild(cardEl);
+                      cardEl = createCardElement(cardData);
+                      container.insertBefore(cardEl, container.firstChild); // Add card back
+                       cardElements[containerId].cardElement = cardEl;
+                       setTimeout(() => cardEl.classList.add('visible'), 50);
+                  }
+                   // Ensure name is up-to-date
+                   nameLabel = cardElements[containerId].nameLabel;
+                   if(nameLabel) nameLabel.textContent = playerName || playerId;
+              }
+
+
+              // --- Flip State ---
+              const shouldBeFlipped = !isFaceDown;
+              const isFlipped = cardEl.classList.contains('flipped');
+
+              if (shouldBeFlipped && !isFlipped) {
+                  setTimeout(() => cardEl.classList.add('flipped'), isWarCard ? WAR_REVEAL_DELAY / 2 : 200); // Delay flip
+              } else if (!shouldBeFlipped && isFlipped) {
+                  cardEl.classList.remove('flipped'); // Ensure face down
+              }
+
+              // Style face-down war cards
+              cardEl.classList.toggle('war-down', isFaceDown && isWarCard);
+         }
+
+          function removeCardFromBattlefield(containerId, delay = 0) {
+              const elements = cardElements[containerId];
+              if (elements && elements.cardElement) {
+                  const container = elements.cardElement.closest('.battlefield-card-container');
+                  if (container) {
+                      setTimeout(() => {
+                          elements.cardElement.style.opacity = '0'; // Fade out card
+                          setTimeout(() => {
+                              if (container.parentNode === battlefield) {
+                                  battlefield.removeChild(container); // Remove the whole container
+                              }
+                              delete cardElements[containerId];
+                          }, 500); // Remove after fade
+                      }, delay);
+                  } else {
+                      delete cardElements[containerId]; // Clean up if container not found
+                  }
+              }
+          }
+
+        // --- Firebase Interaction ---
+
+        function initializeFirebase() {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+                statusDiv.textContent = "Firebase initialized.";
+                 //App Check (Optional but recommended)
+                 try {
+                     const appCheck = firebase.appCheck();
+                     appCheck.activate('YOUR_RECAPTCHA_V3_SITE_KEY', true);
+                     console.log("Firebase App Check activated.");
+                 } catch (e) { console.error("App Check Error:", e); }
+
+                initLobby(); // Go to lobby setup instead of direct game join/create
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                statusDiv.textContent = "Error connecting to Firebase. Check config and console.";
+            }
+        }
+
+        function initLobby() {
+            resetLocalState(); // Clear any previous game state
+            lobbySection.style.display = 'block';
+            gameSection.style.display = 'none';
+            statusDiv.textContent = "Enter your name to create or join a game.";
+
+            const urlParams = new URLSearchParams(window.location.search);
+            gameId = urlParams.get('game');
+
+            if (gameId) {
+                statusDiv.textContent = `Enter your name to join game ${gameId}`;
+                joinGameBtn.style.display = 'inline-block';
+                createGameBtn.style.display = 'none'; // Don't allow creating if joining via link
+                shareLinkContainer.style.display = 'none'; // Hide share link initially when joining
+            } else {
+                statusDiv.textContent = "Enter your name and create a new game.";
+                joinGameBtn.style.display = 'none';
+                createGameBtn.style.display = 'inline-block';
+            }
+        }
+
+        createGameBtn.addEventListener('click', () => {
+            myPlayerName = playerNameInput.value.trim();
+            if (!myPlayerName) {
+                alert("Please enter your name.");
+                return;
+            }
+            playerNameInput.disabled = true;
+            joinGameBtn.disabled = true;
+            createGameBtn.disabled = true;
+            createNewGame();
+        });
+
+        joinGameBtn.addEventListener('click', () => {
+            myPlayerName = playerNameInput.value.trim();
+            if (!myPlayerName) {
+                alert("Please enter your name.");
+                return;
+            }
+            if (!gameId) {
+                alert("No game ID found in the link.");
+                initLobby(); // Reset lobby view
+                return;
+            }
+            playerNameInput.disabled = true;
+            joinGameBtn.disabled = true;
+            createGameBtn.disabled = true;
+            joinGame(gameId);
+        });
+
+
+        function createNewGame() {
+             gameId = generateUniqueId(5); // Shorter game ID
+             myPlayerId = generateUniqueId(8); // Unique ID for the player session
+             storePlayerId(gameId, myPlayerId); // Remember player for this game
+
+             statusDiv.textContent = "Creating game...";
+
+             const initialGameData = {
+                 gameId: gameId,
+                 hostId: myPlayerId,
+                 gameState: "lobby", // Start in lobby
+                 statusMessage: "Waiting for players to join...",
+                 players: {
+                     [myPlayerId]: { // Use computed property name
+                         name: myPlayerName,
+                         joined: true,
+                         isHost: true,
+                         cardCount: 0, // No cards dealt yet
+                         deck: [],
+                         // Fields needed during play, initialize later or as needed
+                         // playedCard: null,
+                         // warCards: null, // [down, up]
+                         // inBattle: false,
+                     }
+                 },
+                 // Fields needed during play
+                 battlePile: null, // { playerId: cardData, ... }
+                 warPile: null, // [cardData, ...]
+                 warParticipants: null, // [playerId, ...]
+                 winner: null
+             };
+
+             gameRef = db.ref('games/' + gameId);
+             gameRef.set(initialGameData).then(() => {
+                 statusDiv.textContent = "Game created! Share the link below.";
+                 const shareUrl = `${window.location.origin}${window.location.pathname}?game=${gameId}`;
+                 shareLinkInput.value = shareUrl;
+                 shareLinkContainer.style.display = 'block';
+                 nameEntryArea.style.display = 'none'; // Hide name input now
+                 setupGameListener(gameId); // Start listening for changes
+             }).catch(error => {
+                 console.error("Error creating game:", error);
+                 statusDiv.textContent = "Error creating game.";
+                 playerNameInput.disabled = false; // Re-enable controls on error
+                 joinGameBtn.disabled = false;
+                 createGameBtn.disabled = false;
+             });
+        }
+
+        function joinGame(id) {
+            statusDiv.textContent = `Attempting to join game ${id}...`;
+            gameRef = db.ref('games/' + id);
+
+            gameRef.transaction(gameData => {
+                if (!gameData) {
+                    // Game doesn't exist
+                    return; // Abort transaction
+                }
+
+                if (gameData.gameState !== 'lobby') {
+                    statusDiv.textContent = "Game has already started or finished.";
+                    console.log("Join cancelled: Game not in lobby state.");
+                     setTimeout(initLobby, 2000); // Go back to lobby screen
+                    return; // Abort transaction
+                }
+
+                const numPlayers = gameData.players ? Object.keys(gameData.players).length : 0;
+                if (numPlayers >= MAX_PLAYERS) {
+                     statusDiv.textContent = "Game is full.";
+                     console.log("Join cancelled: Game full.");
+                      setTimeout(initLobby, 2000);
+                     return; // Abort transaction
+                }
+
+                 // Check if we are rejoining (based on stored ID)
+                 const storedId = getStoredPlayerId(id);
+                 if (storedId && gameData.players[storedId]) {
+                     myPlayerId = storedId;
+                     console.log(`Rejoining as player ${myPlayerId}`);
+                     // Optional: Update name if it changed? For now, just rejoin.
+                     gameData.players[myPlayerId].joined = true; // Ensure marked as joined if rejoining
+                 } else {
+                    // New player joining
+                    myPlayerId = generateUniqueId(8);
+                    storePlayerId(id, myPlayerId); // Store the new ID for this game
+
+                    if (!gameData.players) gameData.players = {}; // Initialize if first joiner after host
+
+                    gameData.players[myPlayerId] = {
+                        name: myPlayerName,
+                        joined: true,
+                        isHost: false,
+                        cardCount: 0,
+                        deck: [],
+                    };
+                    gameData.statusMessage = `${myPlayerName} joined the game! Waiting for players...`;
+                 }
+
+                return gameData; // Return modified data to Firebase
+
+            }, (error, committed, snapshot) => {
+                if (error) {
+                    console.error("Transaction failed: ", error);
+                    statusDiv.textContent = "Error joining game. Please try again.";
+                     playerNameInput.disabled = false; // Re-enable controls
+                     joinGameBtn.disabled = false;
+                     createGameBtn.disabled = false;
+                      setTimeout(initLobby, 2000);
+                } else if (!committed) {
+                    console.log("Transaction aborted (e.g., game full, not found, or started).");
+                    // Status message should be set within the transaction logic
+                    if (!statusDiv.textContent.includes("full") && !statusDiv.textContent.includes("started")) {
+                         statusDiv.textContent = "Could not join game (maybe it was deleted?).";
+                         setTimeout(initLobby, 2000);
+                    }
+                     playerNameInput.disabled = false; // Re-enable controls
+                     joinGameBtn.disabled = false;
+                     createGameBtn.disabled = false;
+                } else {
+                    console.log("Successfully joined game!");
+                    statusDiv.textContent = "Joined game! Waiting for host to start.";
+                    nameEntryArea.style.display = 'none'; // Hide name input
+                    setupGameListener(id); // Start listening
+                }
+            });
+        }
+
+         function setupGameListener(id) {
+             if (gameListener) {
+                 gameRef.off('value', gameListener); // Detach previous listener
+             }
+             gameRef = db.ref('games/' + id);
+             console.log(`Setting up listener for game: ${id}`);
+             gameListener = gameRef.on('value', (snapshot) => {
+                 if (!snapshot.exists()) {
+                     statusDiv.textContent = "Game data not found or deleted. Returning to lobby.";
+                     console.warn("Game data disappeared for ID:", id);
+                     if (gameListener) gameRef.off('value', gameListener);
+                     resetLocalState();
+                      setTimeout(initLobby, 2000);
+                     return;
+                 }
+
+                 currentGameData = snapshot.val();
+                 if (!myPlayerId && currentGameData?.players) {
+                      // Attempt to find player ID again if lost (e.g., refresh)
+                      const storedId = getStoredPlayerId(id);
+                      if (storedId && currentGameData.players[storedId]) {
+                          myPlayerId = storedId;
+                          myPlayerName = currentGameData.players[storedId].name;
+                          console.log("Re-identified player:", myPlayerId, myPlayerName);
+                      } else {
+                           console.warn("Could not re-identify player ID on update.");
+                           // Might need to force back to lobby if ID is lost permanently
+                      }
+                 }
+
+                 // Ensure our player name is current locally
+                 if(myPlayerId && currentGameData?.players?.[myPlayerId] && !myPlayerName) {
+                    myPlayerName = currentGameData.players[myPlayerId].name;
+                 }
+
+
+                 updateUIFromFirebase(currentGameData);
+                 handleGameLogic(currentGameData); // Process game state changes
+
+             }, (error) => {
+                 console.error("Firebase listener error:", error);
+                 statusDiv.textContent = "Connection error. Please refresh.";
+                 if (gameListener) gameRef.off('value', gameListener); // Stop listening on error
+                 resetLocalState();
+             });
+         }
+
+        function resetLocalState() {
+            if (gameListener && gameRef) {
+                gameRef.off('value', gameListener);
+            }
+            currentGameData = null;
+            gameRef = null;
+            gameListener = null;
+            // Don't reset gameId here if we want to allow rejoining easily
+            // gameId = null;
+            myPlayerId = null;
+            myPlayerName = null;
+            cardElements = {};
+
+            // Reset UI
+            lobbySection.style.display = 'none';
+            gameSection.style.display = 'none';
+            nameEntryArea.style.display = 'flex';
+            playerNameInput.value = '';
+            playerNameInput.disabled = false;
+            joinGameBtn.disabled = false;
+            createGameBtn.disabled = false;
+             joinGameBtn.style.display = 'inline-block'; // Show both initially
+             createGameBtn.style.display = 'inline-block';
+            shareLinkContainer.style.display = 'none';
+            playerListUl.innerHTML = '';
+            hostControlsDiv.style.display = 'none';
+            startGameBtn.disabled = true;
+            opponentArea.innerHTML = '';
+            clearBattlefieldVisuals();
+            myPlayerNameDisplay.textContent = "You";
+            myCount.textContent = "Cards: 0";
+            myDeck.style.display = 'none';
+            myDeck.classList.add('disabled');
+             resetGameBtnContainer.style.display = 'none';
+             warPileInfoDiv.textContent = '';
+             statusDiv.textContent = "Loading...";
+        }
+
+        // --- UI Update Function ---
+        function updateUIFromFirebase(data) {
+            if (!data) return;
+
+            statusDiv.textContent = data.statusMessage || "Loading status...";
+
+            // --- Update Lobby View ---
+            if (data.gameState === 'lobby') {
+                lobbySection.style.display = 'block';
+                gameSection.style.display = 'none';
+                 resetGameBtnContainer.style.display = 'none'; // No reset in lobby
+
+                // Update player list
+                playerListUl.innerHTML = '';
+                const players = data.players || {};
+                const playerIds = Object.keys(players);
+                playerIds.forEach(pId => {
+                    const player = players[pId];
+                    if (!player?.joined) return; // Don't list if not fully joined (shouldn't happen often)
+                    const li = document.createElement('li');
+                    li.textContent = player.name || `Player ${pId.substring(0, 4)}`;
+                    if (player.isHost) {
+                        li.classList.add('is-host');
+                    }
+                    if (pId === myPlayerId) {
+                        li.style.fontWeight = 'bold'; // Highlight self
+                        li.textContent += " (You)";
+                    }
+                    playerListUl.appendChild(li);
+                });
+
+                // Show/Hide Host Controls
+                const amIHost = myPlayerId === data.hostId;
+                if (amIHost) {
+                    hostControlsDiv.style.display = 'block';
+                    startGameBtn.disabled = playerIds.length < 2; // Need at least 2 to start
+                } else {
+                    hostControlsDiv.style.display = 'none';
+                }
+                 // Keep share link visible for host in lobby
+                 if (amIHost && shareLinkContainer.style.display !== 'block') {
+                     const shareUrl = `${window.location.origin}${window.location.pathname}?game=${gameId}`;
+                     shareLinkInput.value = shareUrl;
+                     shareLinkContainer.style.display = 'block';
+                 }
+                 // Hide name entry if we have successfully joined/created
+                 if (myPlayerId && data.players[myPlayerId]) {
+                     nameEntryArea.style.display = 'none';
+                 }
+
+
+            }
+            // --- Update Game View ---
+            else {
+                lobbySection.style.display = 'none';
+                gameSection.style.display = 'block';
+                shareLinkContainer.style.display = 'none'; // Hide share link during game
+                 resetGameBtnContainer.style.display = 'block'; // Show New Game button
+                 resetGameBtn.disabled = data.gameState !== 'gameover'; // Enable only when game over
+
+                const players = data.players || {};
+                const myPlayerData = players[myPlayerId];
+
+                // Update My Player Area
+                if (myPlayerData) {
+                    myPlayerNameDisplay.textContent = myPlayerData.name || "You";
+                    myCount.textContent = `Cards: ${myPlayerData.cardCount || 0}`;
+                    myDeck.style.display = (myPlayerData.cardCount > 0) ? 'flex' : 'none';
+                    // Disable deck if card already played this round, or not playing state, or run out of cards
+                    const alreadyPlayed = data.battlePile && data.battlePile[myPlayerId];
+                    const isWarPlayerTurn = data.gameState === 'war_playing' && data.warParticipants?.includes(myPlayerId);
+                    const isMyWarCardPlayed = data.players[myPlayerId]?.warCards; // Check if war cards are set
+
+                    myDeck.classList.toggle('disabled',
+                        data.gameState === 'gameover' ||
+                        myPlayerData.cardCount === 0 ||
+                        (data.gameState === 'playing' && alreadyPlayed) || // Already played in normal round
+                        (data.gameState === 'war_playing' && (!isWarPlayerTurn || isMyWarCardPlayed)) || // Not your war turn or already played war cards
+                        (data.gameState !== 'playing' && data.gameState !== 'war_playing') // Not in a state where playing is allowed
+                    );
+
+                } else {
+                    // Should not happen if player is in game, maybe handle observer state later
+                    myPlayerArea.style.display = 'none';
+                }
+
+                // Update Opponent Area
+                opponentArea.innerHTML = '';
+                Object.keys(players).forEach(pId => {
+                    if (pId === myPlayerId) return; // Skip self
+                    const player = players[pId];
+                    const oppDiv = document.createElement('div');
+                    oppDiv.classList.add('opponent-info');
+                    const nameSpan = document.createElement('span');
+                    nameSpan.classList.add('op-name');
+                    nameSpan.textContent = player.name || `Player ${pId.substring(0, 4)}`;
+                    const countSpan = document.createElement('span');
+                    countSpan.classList.add('op-count');
+                    countSpan.textContent = `Cards: ${player.cardCount || 0}`;
+                     const statusSpan = document.createElement('span'); // To show "Played" or "War" etc.
+                     statusSpan.classList.add('op-status');
+
+                     // Show status like "Played" or "In War"
+                     if (data.battlePile && data.battlePile[pId]) {
+                         statusSpan.textContent = 'Played';
+                     } else if (data.gameState === 'war_playing' && data.warParticipants?.includes(pId)) {
+                          statusSpan.textContent = 'Playing War...';
+                          if(player.warCards) statusSpan.textContent = 'War cards set';
+                     } else if (data.gameState.startsWith('resolving') && player.cardCount > 0) {
+                         statusSpan.textContent = 'Waiting...';
+                     } else if (player.cardCount === 0) {
+                          statusSpan.textContent = 'Out!';
+                          oppDiv.style.opacity = '0.6';
+                     }
+
+
+                    oppDiv.appendChild(nameSpan);
+                    oppDiv.appendChild(countSpan);
+                     oppDiv.appendChild(statusSpan);
+                    opponentArea.appendChild(oppDiv);
+                });
+
+                // --- Update Battlefield ---
+                const currentBattleCards = data.battlePile || {};
+                const currentWarCards = data.gameState.startsWith('war') || data.gameState.startsWith('resolving_war') ? players : {}; // Look at player.warCards
+                const activeCardPlayerIds = new Set([...Object.keys(currentBattleCards), ...Object.keys(currentWarCards)]);
+
+                 // Remove cards from players no longer showing a card
+                 Object.keys(cardElements).forEach(containerId => {
+                     const pId = containerId.replace('bf-card-', '');
+                     let showCard = false;
+                     if (currentBattleCards[pId]) {
+                          showCard = true;
+                     } else if (players[pId]?.warCards) {
+                          showCard = true; // Show if they have war cards set
+                     }
+
+                     if (!showCard) {
+                          removeCardFromBattlefield(containerId);
+                     }
+                 });
+
+
+                // Display cards currently in battlePile (normal round)
+                if (data.gameState === 'playing' || data.gameState === 'resolving_battle') {
+                    Object.keys(currentBattleCards).forEach(pId => {
+                        const cardData = currentBattleCards[pId];
+                        const playerName = players[pId]?.name || pId.substring(0,4);
+                        displayCardOnBattlefield(pId, cardData, playerName, false, false);
+                    });
+                 }
+                 // Display war cards
+                 else if (data.gameState === 'war_playing' || data.gameState === 'war_reveal' || data.gameState === 'resolving_war_round') {
+                      // Show cards from players involved in the war reveal/resolution
+                      (data.warParticipants || []).forEach(pId => {
+                           const playerWarCards = players[pId]?.warCards; // Array [down, up]
+                           if(playerWarCards && playerWarCards.length === 2) {
+                               const playerName = players[pId]?.name || pId.substring(0,4);
+                               // Display both, controlling flip state via gameState
+                               const showFaceUp = (data.gameState === 'war_reveal' || data.gameState === 'resolving_war_round');
+                               // For simplicity, let's just show the face-up card during reveal/resolve
+                               // You could modify displayCardOnBattlefield to handle showing two cards per player
+                               displayCardOnBattlefield(pId, playerWarCards[1], playerName, !showFaceUp, true); // Show face-up (or back if not revealed yet)
+
+                               // TODO: Optionally display face-down card slightly offset if desired
+                           } else if (players[pId]?.cardCount > 0 && data.warParticipants?.includes(pId)) {
+                               // Player is in war but hasn't played cards yet (or ran out during play)
+                                // Maybe show a placeholder or use opponent status? Handled by opponent status for now.
+                           }
+                      });
+                 }
+                 else if (data.gameState === 'lobby' || data.gameState === 'gameover') {
+                      clearBattlefieldVisuals();
+                 }
+
+
+                // Update war pile info
+                 const warPileSize = data.warPile ? data.warPile.length : 0;
+                 const battlePileSize = data.battlePile ? Object.keys(data.battlePile).length : 0;
+                  // Add count of face-down war cards if applicable
+                  let faceDownWarCardsCount = 0;
+                  if (data.gameState.startsWith('war') && data.warParticipants) {
+                       faceDownWarCardsCount = (data.warParticipants || []).reduce((count, pId) => {
+                            return count + (players[pId]?.warCards ? 1 : 0); // Add 1 for the face-down card per player with warCards set
+                       }, 0);
+                  }
+
+                warPileInfoDiv.textContent = warPileSize + faceDownWarCardsCount > 0 ? `War Pile: ${warPileSize + faceDownWarCardsCount}` : '';
+            }
+        }
+
+        // --- Game Logic Handling (Host Driven) ---
+        function handleGameLogic(data) {
+            if (!data || !myPlayerId) return;
+
+             const amIHost = data.hostId === myPlayerId;
+             const activePlayers = Object.entries(data.players || {})
+                                       .filter(([id, pData]) => pData.cardCount > 0)
+                                       .map(([id, pData]) => id);
+             const numActivePlayers = activePlayers.length;
+
+
+             if (amIHost && data.gameState === 'playing') {
+                  const battlePileSize = data.battlePile ? Object.keys(data.battlePile).length : 0;
+                  // Check if all *active* players have played
+                  if (numActivePlayers > 0 && battlePileSize === numActivePlayers) {
+                      console.log("Host detected all active players played. Triggering resolveBattle.");
+                      // Prevent duplicate triggers by checking state again before calling
+                      if(currentGameData?.gameState === 'playing') { // Read latest state just before call
+                          resolveBattle(currentGameData); // Pass current (latest) data
+                      }
+                  }
+             }
+             else if (amIHost && data.gameState === 'war_playing') {
+                 // Check if all war participants have played their war cards
+                 const numWarParticipants = data.warParticipants?.length || 0;
+                 let warCardsPlayedCount = 0;
+                 (data.warParticipants || []).forEach(pId => {
+                     if (data.players[pId]?.warCards) {
+                         warCardsPlayedCount++;
+                     }
+                 });
+
+                 if (numWarParticipants > 0 && warCardsPlayedCount === numWarParticipants) {
+                      console.log("Host detected all war participants played cards. Triggering war reveal.");
+                      if(currentGameData?.gameState === 'war_playing') {
+                           gameRef.update({ gameState: 'war_reveal', statusMessage: "War! Revealing cards..." });
+                      }
+                 }
+             }
+              else if (amIHost && data.gameState === 'war_reveal') {
+                 // After cards are revealed (UI delay handled by WAR_REVEAL_DELAY in display function), resolve the war
+                 console.log("Host detected war reveal state. Triggering resolveWar after delay.");
+                  if(currentGameData?.gameState === 'war_reveal') {
+                     setTimeout(() => {
+                         // Re-fetch data right before resolving war
+                         gameRef.once('value', snapshot => {
+                             if (snapshot.exists() && snapshot.val().gameState === 'war_reveal') {
+                                 resolveWar(snapshot.val());
+                             } else {
+                                 console.log("War resolution skipped, state changed before timeout.");
+                             }
+                         });
+                     }, WAR_REVEAL_DELAY); // Wait for visual flip
+                  }
+              }
+            // No specific host action needed for resolving_battle, resolving_war_round, gameover (handled by updates)
+        }
+
+         // --- Player Actions ---
+
+         startGameBtn.addEventListener('click', () => {
+             if (!currentGameData || myPlayerId !== currentGameData.hostId || currentGameData.gameState !== 'lobby') {
+                 return; // Safety check
+             }
+             const playerIds = Object.keys(currentGameData.players || {});
+             if (playerIds.length < 2) {
+                 alert("Need at least 2 players to start.");
+                 return;
+             }
+
+             console.log("Host starting game...");
+             statusDiv.textContent = "Dealing cards...";
+             startGameBtn.disabled = true;
+
+             const fullDeck = createDeckData();
+             shuffleDeck(fullDeck);
+
+             const updates = {};
+             const updatedPlayers = JSON.parse(JSON.stringify(currentGameData.players)); // Deep copy
+             const numPlayers = playerIds.length;
+             let cardIndex = 0;
+
+              // Initialize/Reset decks and counts before dealing
+              playerIds.forEach(pId => {
+                 updatedPlayers[pId].deck = [];
+                 updatedPlayers[pId].cardCount = 0;
+              });
+
+
+             // Deal cards
+             while (cardIndex < fullDeck.length) {
+                 const pId = playerIds[cardIndex % numPlayers];
+                 updatedPlayers[pId].deck.push(fullDeck[cardIndex]);
+                 cardIndex++;
+             }
+
+             // Update counts
+             playerIds.forEach(pId => {
+                 updatedPlayers[pId].cardCount = updatedPlayers[pId].deck.length;
+             });
+
+
+             updates['/players'] = updatedPlayers;
+             updates['/gameState'] = 'playing';
+             updates['/statusMessage'] = "Game started! Everyone, play your first card!";
+             updates['/battlePile'] = null; // Ensure clean state
+             updates['/warPile'] = null;
+             updates['/warParticipants'] = null;
+             updates['/winner'] = null;
+
+             gameRef.update(updates).catch(error => {
+                 console.error("Error starting game:", error);
+                 statusDiv.textContent = "Error starting game.";
+                 startGameBtn.disabled = false; // Re-enable button on error
+             });
+         });
+
+          myDeck.addEventListener('click', () => {
+             if (!currentGameData || !myPlayerId || !gameRef || !db) return;
+
+             const myData = currentGameData.players[myPlayerId];
+             const currentGameState = currentGameData.gameState;
+
+             if (!myData || myData.cardCount === 0 || myDeck.classList.contains('disabled')) {
+                 console.log("Deck click ignored: No cards, disabled, or invalid state.");
+                 return;
+             }
+
+             let remainingDeck = [...myData.deck]; // Copy
+             if (remainingDeck.length === 0) {
+                  console.error("Clicked deck but local deck copy is empty!");
+                  return; // Should be prevented by cardCount check, but safety first
+             }
+              const cardToPlay = remainingDeck.shift();
+              const updatePath = {};
+
+             // --- Normal Turn ---
+              if (currentGameState === 'playing' && (!currentGameData.battlePile || !currentGameData.battlePile[myPlayerId])) {
+                  console.log(`${myPlayerName} playing normal card:`, cardToPlay);
+                  updatePath[`/players/${myPlayerId}/deck`] = remainingDeck;
+                  updatePath[`/players/${myPlayerId}/cardCount`] = remainingDeck.length;
+                  updatePath[`/battlePile/${myPlayerId}`] = cardToPlay; // Add to battle pile directly
+
+                  // Update status - maybe let host handle this on resolution? Or simple update?
+                  const activePlayers = Object.values(currentGameData.players).filter(p => p.cardCount > 0).length;
+                  const playedCount = (currentGameData.battlePile ? Object.keys(currentGameData.battlePile).length : 0) + 1; // +1 for this play
+                  updatePath['/statusMessage'] = `${myPlayerName} played. Waiting for ${activePlayers - playedCount} more players...`;
+
+                  gameRef.update(updatePath);
+              }
+              // --- War Turn ---
+              else if (currentGameState === 'war_playing' && currentGameData.warParticipants?.includes(myPlayerId) && !myData.warCards) {
+                   // Player needs to provide war cards (1 down, 1 up)
+                   if (remainingDeck.length < 1) {
+                       // Ran out of cards BEFORE playing war cards
+                       console.log(`${myPlayerName} ran out of cards before playing war cards.`);
+                       handleOutOfCardsWar(myPlayerId, currentGameData); // Handle this specific case
+                       return;
+                   }
+
+                   const cardDown = remainingDeck.shift();
+                   let cardUp = null;
+                   if (remainingDeck.length > 0) {
+                       cardUp = remainingDeck.shift();
+                   } else {
+                        // Ran out of cards AFTER playing the face-down card
+                        console.log(`${myPlayerName} ran out of cards after playing face-down war card.`);
+                        // Player is out, but the face-down card is still in play for the war pile
+                         updatePath[`/players/${myPlayerId}/warCards`] = [cardDown, null]; // Mark face-up as null
+                         updatePath[`/players/${myPlayerId}/deck`] = [];
+                         updatePath[`/players/${myPlayerId}/cardCount`] = 0;
+                         updatePath['/statusMessage'] = `${myPlayerName} placed last card face down for war!`;
+                         gameRef.update(updatePath);
+                         // Host logic will handle resolution when everyone has played or run out.
+                         return; // Don't continue further for this player
+                   }
+
+                  console.log(`${myPlayerName} setting war cards:`, cardDown, cardUp);
+                   updatePath[`/players/${myPlayerId}/warCards`] = [cardDown, cardUp];
+                   updatePath[`/players/${myPlayerId}/deck`] = remainingDeck;
+                   updatePath[`/players/${myPlayerId}/cardCount`] = remainingDeck.length;
+                   updatePath['/statusMessage'] = `${myPlayerName} set war cards. Waiting for others...`;
+
+                   gameRef.update(updatePath);
+              }
+          });
+
+         resetGameBtn.addEventListener('click', () => {
+             if (confirm("Start a new game? This will abandon the current one.")) {
+                  // Host can potentially delete the old game, or players just leave
+                  // For simplicity, just reset locally and go to lobby
+                  window.history.replaceState({}, document.title, window.location.pathname); // Clear URL param
+                  resetLocalState();
+                  initLobby(); // Go back to lobby screen
+             }
+         });
+
+         // --- Battle/War Resolution (Host Driven) ---
+
+         function resolveBattle(data) { // data = latest game data when triggered
+              if (!data || data.gameState !== 'playing' || !data.battlePile) {
+                  console.warn("resolveBattle called in invalid state or no battle pile:", data?.gameState);
+                  return;
+              }
+               if (!gameRef) { console.error("resolveBattle: gameRef is null!"); return; }
+
+              console.log("Host resolving battle...");
+              const updates = { gameState: 'resolving_battle', statusMessage: "Comparing cards..." };
+              const battleCards = data.battlePile;
+              const playerIdsInBattle = Object.keys(battleCards);
+              let highestValue = 0;
+              let winners = []; // Array of player IDs with the highest value
+
+               // Find highest value and winners
+               playerIdsInBattle.forEach(pId => {
+                   const cardValue = battleCards[pId]?.value || 0;
+                   if (cardValue > highestValue) {
+                       highestValue = cardValue;
+                       winners = [pId]; // New highest
+                   } else if (cardValue === highestValue) {
+                       winners.push(pId); // Tie
+                   }
+               });
+
+              // --- Apply state change immediately ---
+              gameRef.update(updates).then(() => {
+                  console.log(`Battle resolution: Highest value ${highestValue} by ${winners.join(', ')}`);
+
+                  const finalUpdates = {};
+                   const cardsInBattle = Object.values(battleCards); // All cards played this round
+
+                  // --- Check for Game Over Pre-emptively (if only 1 active player left after this round) ---
+                  // This is tricky because cards haven't been awarded. A simpler check is after resolution.
+
+                  // --- Handle Win or War ---
+                   if (winners.length === 1) {
+                       // --- Normal Win ---
+                       const winnerId = winners[0];
+                       const winnerName = data.players[winnerId]?.name || winnerId.substring(0,4);
+                       console.log(`${winnerName} wins the round.`);
+
+                        const currentWinnerDeck = data.players[winnerId]?.deck || [];
+                        const currentWarPile = data.warPile || [];
+                        const allWinnings = [...currentWarPile, ...cardsInBattle];
+                        shuffleDeck(allWinnings);
+
+                        const newWinnerDeck = [...currentWinnerDeck, ...allWinnings];
+
+                        finalUpdates[`/players/${winnerId}/deck`] = newWinnerDeck;
+                        finalUpdates[`/players/${winnerId}/cardCount`] = newWinnerDeck.length;
+                         // Reset battle state
+                        finalUpdates['/battlePile'] = null;
+                        finalUpdates['/warPile'] = null; // Clear war pile on normal win
+                        finalUpdates['/gameState'] = 'playing';
+                         finalUpdates['/statusMessage'] = `${winnerName} wins the round! (${allWinnings.length} cards). Play next card.`;
+                        finalUpdates['/warParticipants'] = null; // Clear participants
+
+                   } else {
+                        // --- WAR ---
+                        console.log(`War declared between: ${winners.map(id => data.players[id]?.name || id).join(', ')}`);
+                        const currentWarPile = data.warPile || [];
+                        const newWarPile = [...currentWarPile, ...cardsInBattle];
+
+                        finalUpdates['/warPile'] = newWarPile; // Add battle cards to war pile
+                        finalUpdates['/battlePile'] = null; // Clear battle pile
+                        finalUpdates['/warParticipants'] = winners; // Set who is in the war
+                        finalUpdates['/gameState'] = 'war_playing'; // Move to state where war participants play
+                        finalUpdates['/statusMessage'] = `WAR! ${winners.map(id => data.players[id]?.name || id).join(' & ')} play war cards!`;
+
+                        // Clear warCards field for participants before they play again
+                         winners.forEach(pId => {
+                             finalUpdates[`/players/${pId}/warCards`] = null;
+                         });
+                   }
+
+                  // --- Check for Game Over AFTER deciding win/war ---
+                  const playerCounts = {};
+                   Object.keys(data.players).forEach(pId => {
+                       playerCounts[pId] = finalUpdates[`/players/${pId}/cardCount`] ?? data.players[pId].cardCount;
+                   });
+                   const activePlayersAfterRound = Object.keys(playerCounts).filter(pId => playerCounts[pId] > 0);
+
+                    if (activePlayersAfterRound.length === 1) {
+                         const gameWinnerId = activePlayersAfterRound[0];
+                         const gameWinnerName = data.players[gameWinnerId]?.name || gameWinnerId.substring(0,4);
+                         console.log("Game Over detected after battle resolution!");
+
+                         // Award any remaining cards (though logic should handle this, safety check)
+                         const finalDeck = finalUpdates[`/players/${gameWinnerId}/deck`] ?? data.players[gameWinnerId].deck;
+                         const finalCount = finalUpdates[`/players/${gameWinnerId}/cardCount`] ?? data.players[gameWinnerId].cardCount;
+
+                         // Override previous updates with game over state
+                         finalUpdates['/gameState'] = 'gameover';
+                         finalUpdates['/winner'] = gameWinnerId;
+                         finalUpdates['/statusMessage'] = `Game Over! ${gameWinnerName} wins the war!`;
+                         finalUpdates['/battlePile'] = null;
+                         finalUpdates['/warPile'] = null;
+                         finalUpdates['/warParticipants'] = null;
+                         // Ensure final counts are correct
+                         Object.keys(data.players).forEach(pId => {
+                              if(pId === gameWinnerId) {
+                                   finalUpdates[`/players/${pId}/deck`] = finalDeck;
+                                   finalUpdates[`/players/${pId}/cardCount`] = finalCount > 0 ? finalCount : 52; // Give all if somehow count is 0
+                              } else {
+                                   finalUpdates[`/players/${pId}/deck`] = [];
+                                   finalUpdates[`/players/${pId}/cardCount`] = 0;
+                              }
+                              finalUpdates[`/players/${pId}/warCards`] = null; // Clear war cards too
+                         });
+                   } else if (activePlayersAfterRound.length === 0) {
+                        // Edge case: Simultaneous elimination? Draw?
+                        console.log("Game Over - Draw or simultaneous elimination?");
+                        finalUpdates['/gameState'] = 'gameover';
+                        finalUpdates['/winner'] = null; // No winner
+                        finalUpdates['/statusMessage'] = `Game Over! It's a draw!`;
+                         Object.keys(data.players).forEach(pId => { // Clear all players
+                              finalUpdates[`/players/${pId}/deck`] = [];
+                              finalUpdates[`/players/${pId}/cardCount`] = 0;
+                              finalUpdates[`/players/${pId}/warCards`] = null;
+                         });
+                        finalUpdates['/battlePile'] = null;
+                        finalUpdates['/warPile'] = null;
+                        finalUpdates['/warParticipants'] = null;
+                   }
+
+
+                  // Apply final updates after delay
+                  setTimeout(() => {
+                      console.log("Applying final battle updates:", finalUpdates);
+                      gameRef.update(finalUpdates).catch(error => {
+                          console.error("Error applying final battle updates:", error);
+                          // Consider adding error state handling
+                      });
+                  }, BATTLE_RESOLVE_DELAY);
+
+              }).catch(error => {
+                  console.error("Error setting resolving_battle state:", error);
+              });
+         }
+
+         function resolveWar(data) { // data = latest game data when triggered (after reveal)
+               if (!data || data.gameState !== 'war_reveal' || !data.warParticipants) {
+                  console.warn("resolveWar called in invalid state:", data?.gameState);
+                  return;
+              }
+               if (!gameRef) { console.error("resolveWar: gameRef is null!"); return; }
+
+               console.log("Host resolving war round...");
+               const updates = { gameState: 'resolving_war_round', statusMessage: "Comparing war cards..." };
+               const warParticipants = data.warParticipants;
+               let highestValue = 0;
+               let winners = []; // Players who tied for highest in THIS war round
+                const cardsFromThisWar = []; // Collect face-down and face-up cards played
+
+               warParticipants.forEach(pId => {
+                   const warCards = data.players[pId]?.warCards; // [down, up]
+                   if (warCards) {
+                       if(warCards[0]) cardsFromThisWar.push(warCards[0]); // Add face-down card
+                       const cardUp = warCards[1];
+                       if(cardUp) { // Player might have run out after face-down
+                            cardsFromThisWar.push(cardUp); // Add face-up card
+                            const cardValue = cardUp.value;
+                            if (cardValue > highestValue) {
+                                highestValue = cardValue;
+                                winners = [pId];
+                            } else if (cardValue === highestValue) {
+                                winners.push(pId);
+                            }
+                       } else {
+                           // Player played face-down but ran out before face-up. They are out of this war's comparison.
+                           console.log(`${data.players[pId]?.name} ran out after face-down card.`);
+                       }
+                   } else {
+                        // Player ran out before even playing war cards (handled in handleOutOfCardsWar generally)
+                        console.log(`${data.players[pId]?.name} seems to have run out before playing war cards.`);
+                   }
+               });
+
+               // Apply initial state update
+               gameRef.update(updates).then(() => {
+                   console.log(`War resolution: Highest value ${highestValue} by ${winners.map(id=>data.players[id]?.name || id).join(', ')}`);
+
+                   const finalUpdates = {};
+                   const currentWarPile = data.warPile || [];
+                    const totalSpoils = [...currentWarPile, ...cardsFromThisWar];
+
+                   // --- Handle Win or Another War ---
+                   if (winners.length === 1) {
+                       // --- War Win ---
+                       const winnerId = winners[0];
+                        const winnerName = data.players[winnerId]?.name || winnerId.substring(0,4);
+                       console.log(`${winnerName} wins the war!`);
+
+                       const currentWinnerDeck = data.players[winnerId]?.deck || [];
+                        shuffleDeck(totalSpoils);
+                        const newWinnerDeck = [...currentWinnerDeck, ...totalSpoils];
+
+                        finalUpdates[`/players/${winnerId}/deck`] = newWinnerDeck;
+                        finalUpdates[`/players/${winnerId}/cardCount`] = newWinnerDeck.length;
+
+                        // Reset war state for all involved
+                        warParticipants.forEach(pId => {
+                            finalUpdates[`/players/${pId}/warCards`] = null;
+                        });
+
+                        finalUpdates['/warPile'] = null;
+                        finalUpdates['/warParticipants'] = null;
+                        finalUpdates['/battlePile'] = null; // Ensure cleared
+                        finalUpdates['/gameState'] = 'playing';
+                        finalUpdates['/statusMessage'] = `${winnerName} wins the war! (${totalSpoils.length} cards). Play next card.`;
+
+                   } else if (winners.length > 1) {
+                        // --- ANOTHER WAR ---
+                       console.log(`Another war declared between: ${winners.map(id => data.players[id]?.name || id).join(', ')}`);
+
+                        finalUpdates['/warPile'] = totalSpoils; // Add this round's cards to the pile
+                        finalUpdates['/warParticipants'] = winners; // Only tied players continue
+                        finalUpdates['/gameState'] = 'war_playing'; // Go back to playing war cards
+                        finalUpdates['/statusMessage'] = `ANOTHER WAR! ${winners.map(id => data.players[id]?.name || id).join(' & ')} play again!`;
+
+                        // Reset warCards for the continuing participants
+                         winners.forEach(pId => {
+                            finalUpdates[`/players/${pId}/warCards`] = null;
+                        });
+                         // Also clear warCards for those who lost this war round but were participants
+                         warParticipants.forEach(pId => {
+                             if (!winners.includes(pId)) {
+                                  finalUpdates[`/players/${pId}/warCards`] = null;
+                             }
+                         });
+
+                   } else {
+                       // --- Edge Case: Everyone involved ran out simultaneously? ---
+                       console.log("War resolution resulted in no winners (simultaneous out?).");
+                       // The spoils remain in the warPile? Or game draw? Let's add to pile and check game over.
+                       finalUpdates['/warPile'] = totalSpoils;
+                        finalUpdates['/warParticipants'] = null; // No one left in war
+                        finalUpdates['/gameState'] = 'playing'; // Try to continue? Check game over will handle.
+                        finalUpdates['/statusMessage'] = `War ended inconclusively. Checking game status...`;
+                         // Reset warCards for all participants
+                        warParticipants.forEach(pId => {
+                            finalUpdates[`/players/${pId}/warCards`] = null;
+                        });
+                   }
+
+                  // --- Check for Game Over (similar to resolveBattle) ---
+                  const playerCounts = {};
+                   Object.keys(data.players).forEach(pId => {
+                       playerCounts[pId] = finalUpdates[`/players/${pId}/cardCount`] ?? data.players[pId].cardCount;
+                   });
+                   const activePlayersAfterWar = Object.keys(playerCounts).filter(pId => playerCounts[pId] > 0);
+
+                    if (activePlayersAfterWar.length === 1) {
+                         const gameWinnerId = activePlayersAfterWar[0];
+                         const gameWinnerName = data.players[gameWinnerId]?.name || gameWinnerId.substring(0,4);
+                         console.log("Game Over detected after war resolution!");
+                         // Override updates with game over state
+                         finalUpdates['/gameState'] = 'gameover';
+                         finalUpdates['/winner'] = gameWinnerId;
+                         finalUpdates['/statusMessage'] = `Game Over! ${gameWinnerName} wins the whole war!`;
+                         // Ensure final counts and clear fields
+                          Object.keys(data.players).forEach(pId => {
+                               finalUpdates[`/players/${pId}/cardCount`] = (pId === gameWinnerId) ? (playerCounts[gameWinnerId] > 0 ? playerCounts[gameWinnerId] : 52) : 0;
+                               finalUpdates[`/players/${pId}/deck`] = (pId === gameWinnerId) ? (finalUpdates[`/players/${pId}/deck`] ?? []) : [];
+                               finalUpdates[`/players/${pId}/warCards`] = null;
+                          });
+                         finalUpdates['/battlePile'] = null;
+                         finalUpdates['/warPile'] = null;
+                         finalUpdates['/warParticipants'] = null;
+                   } else if (activePlayersAfterWar.length === 0) {
+                        // Simultaneous elimination during war
+                         console.log("Game Over - Draw during war?");
+                        finalUpdates['/gameState'] = 'gameover';
+                        finalUpdates['/winner'] = null; // No winner
+                        finalUpdates['/statusMessage'] = `Game Over! It's a draw after a war!`;
+                         Object.keys(data.players).forEach(pId => { // Clear all players
+                              finalUpdates[`/players/${pId}/deck`] = [];
+                              finalUpdates[`/players/${pId}/cardCount`] = 0;
+                              finalUpdates[`/players/${pId}/warCards`] = null;
+                         });
+                         finalUpdates['/battlePile'] = null;
+                         finalUpdates['/warPile'] = null;
+                         finalUpdates['/warParticipants'] = null;
+                   }
+
+
+                   // Apply final updates after delay (shorter than battle maybe?)
+                  setTimeout(() => {
+                      console.log("Applying final war updates:", finalUpdates);
+                      gameRef.update(finalUpdates).catch(error => {
+                          console.error("Error applying final war updates:", error);
+                      });
+                  }, BATTLE_RESOLVE_DELAY); // Use same delay for consistency
+
+
+               }).catch(error => {
+                  console.error("Error setting resolving_war_round state:", error);
+               });
+         }
+
+         function handleOutOfCardsWar(playerWhoRanOut, data) {
+            // This function is called IF a player tries to play war cards but has 0
+            // It assumes the host will eventually resolve the war state.
+            // The main effect here is just logging, the resolution logic handles counts.
+            // NOTE: This specific function might be less critical if the main resolution
+            // logic correctly handles players with 0 cards when comparing/awarding.
+             console.log(`${data.players[playerWhoRanOut]?.name} ran out of cards during war.`);
+             // No direct Firebase update needed here, resolution logic handles the consequences.
+             // We could potentially set a flag on the player object if needed.
+             // e.g., gameRef.child(`players/${playerWhoRanOut}/isOutOfWar`).set(true);
+         }
+
+
+        // --- Start ---
+        window.onload = initializeFirebase;
+
+    </script>
+</body>
+</html>
