@@ -636,10 +636,22 @@ function updateGameBoard() {
     if (currentGame.myCards && currentGame.myCards.length > 0) {
         if (currentGame.gameState.warState) {
             // Enable only for war players
-            if (currentGame.gameState.warPlayers && 
-                currentGame.gameState.warPlayers.includes(currentGame.playerId) &&
-                currentGame.gameState.warStage === 'war_cards' &&
-                (!currentGame.gameState.warCards || !currentGame.gameState.warCards[currentGame.playerId])) {
+            const isWarPlayer = currentGame.gameState.warPlayers && 
+                                currentGame.gameState.warPlayers.includes(currentGame.playerId);
+            const isWarCardsStage = currentGame.gameState.warStage === 'war_cards';
+            const hasNotPlayedWarCard = !currentGame.gameState.warCards || 
+                                      !currentGame.gameState.warCards[currentGame.playerId];
+            
+            console.log('War state conditions:', {
+                isWarPlayer,
+                isWarCardsStage,
+                hasNotPlayedWarCard,
+                warPlayers: currentGame.gameState.warPlayers,
+                warStage: currentGame.gameState.warStage,
+                warCards: currentGame.gameState.warCards
+            });
+            
+            if (isWarPlayer && isWarCardsStage && hasNotPlayedWarCard) {
                 enablePlayButton();
             } else {
                 disablePlayButton();
@@ -662,11 +674,13 @@ function enablePlayButton() {
     playCardBtn.disabled = false;
     playCardBtn.classList.remove('disabled-button');
     currentGame.isPlayingCard = false;
+    console.log('Play button enabled');
 }
 
 function disablePlayButton() {
     playCardBtn.disabled = true;
     playCardBtn.classList.add('disabled-button');
+    console.log('Play button disabled');
 }
 
 // Determine Round Winner
@@ -898,9 +912,13 @@ function handleWarPlayCard() {
     
     // Set the playing state to true
     currentGame.isPlayingCard = true;
+    
+    // Disable button immediately to prevent double-clicks
+    disablePlayButton();
 
     if (!currentGame.myCards || currentGame.myCards.length === 0) {
         alert('You have no cards left');
+        currentGame.isPlayingCard = false;
         enablePlayButton();
         return;
     }
@@ -942,15 +960,23 @@ function handleWarPlayCard() {
         .finally(() => {
             // Reset playing state
             currentGame.isPlayingCard = false;
+            // Keep button disabled as we've already played our war card
+            disablePlayButton();
         });
 }
 
 // Resolve War Winner
 function resolveWarWinner() {
-    if (!currentGame.gameState || !currentGame.gameState.warCards) return;
+    console.log('Resolving war winner...');
+    
+    if (!currentGame.gameState || !currentGame.gameState.warCards) {
+        console.log('Cannot resolve war - no war cards in game state', currentGame.gameState);
+        return;
+    }
     
     // Get all war cards
     const warCards = currentGame.gameState.warCards;
+    console.log('War cards:', warCards);
     
     // Map cards to their values
     const cardValues = {};
@@ -959,6 +985,7 @@ function resolveWarWinner() {
         const value = CARD_VALUES.indexOf(card.value);
         cardValues[playerId] = value;
     });
+    console.log('Card values:', cardValues);
     
     // Find highest value
     const highestValue = Math.max(...Object.values(cardValues));
@@ -967,9 +994,12 @@ function resolveWarWinner() {
     const winningPlayers = Object.keys(cardValues).filter(
         playerId => cardValues[playerId] === highestValue
     );
+    console.log('Players with highest cards:', winningPlayers);
     
     // If still tied, another war
     if (winningPlayers.length > 1) {
+        console.log('Still tied - another war needed');
+        
         // Check if players have enough cards for another war
         const haveEnoughCards = winningPlayers.every(playerId => {
             const player = currentGame.players[playerId];
@@ -977,10 +1007,12 @@ function resolveWarWinner() {
         });
         
         if (!haveEnoughCards) {
+            console.log('Some players don\'t have enough cards - selecting random winner');
             // If any player doesn't have enough cards, select random winner
             const randomWinner = winningPlayers[Math.floor(Math.random() * winningPlayers.length)];
             awardWarCardsToWinner(randomWinner);
         } else {
+            console.log('All players have enough cards - continuing war');
             // Update war players and reset for another round of war
             updateGameState(currentGame.gameCode, {
                 warPlayers: winningPlayers,
@@ -997,11 +1029,13 @@ function resolveWarWinner() {
                 
                 // Enable play button for war players
                 if (winningPlayers.includes(currentGame.playerId)) {
+                    console.log('Enabling play button for this player in continued war');
                     enablePlayButton();
                 }
             }, 3000);
         }
     } else {
+        console.log('War has a clear winner:', winningPlayers[0]);
         // One clear winner from the war
         const winnerId = winningPlayers[0];
         
@@ -1132,7 +1166,11 @@ function showGameScreen() {
 
 // Award War Cards to Winner
 function awardWarCardsToWinner(winnerId) {
-    if (!currentGame.gameState) return;
+    console.log('Awarding war cards to winner:', winnerId);
+    if (!currentGame.gameState) {
+        console.log('No game state - cannot award war cards');
+        return;
+    }
     
     // Ensure war animation is hidden
     hideWarAnimation();
@@ -1142,9 +1180,15 @@ function awardWarCardsToWinner(winnerId) {
         ...(currentGame.gameState.warPot || []),
         ...Object.values(currentGame.gameState.warCards || {})
     ];
+    console.log('Total cards to award:', allCards.length);
     
     // Get winner's current cards
     const winner = currentGame.players[winnerId];
+    if (!winner) {
+        console.log('Winner not found in players list:', winnerId);
+        return;
+    }
+    
     let winnerCards = winner.cards || [];
     
     // Ensure it's an array
@@ -1177,6 +1221,13 @@ function awardWarCardsToWinner(winnerId) {
     
     // Check for game end
     checkGameEnd();
+    
+    // Make sure the play button is enabled for the next round if player has cards
+    setTimeout(() => {
+        if (currentGame.myCards && currentGame.myCards.length > 0) {
+            enablePlayButton();
+        }
+    }, 1000);
 }
 
 // Award Cards to Winner
