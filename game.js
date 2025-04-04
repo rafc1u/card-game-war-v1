@@ -681,8 +681,49 @@ function updateGameBoard() {
     if (currentGame.gameState) {
         battleArea.innerHTML = '';
         
-        // Show battle cards if they exist
-        if (currentGame.gameState.battleCards) {
+        // First section: Initial battle cards that caused the war (if in war state)
+        if (currentGame.gameState.warState && currentGame.gameState.battleCards) {
+            // Create a section for initial battle cards
+            const initialCardsSection = document.createElement('div');
+            initialCardsSection.classList.add('initial-battle-cards');
+            
+            // Add a label
+            const initialLabel = document.createElement('div');
+            initialLabel.classList.add('cards-section-label');
+            initialLabel.textContent = 'Initial Tied Cards:';
+            initialCardsSection.appendChild(initialLabel);
+            
+            // Add the cards div
+            const initialCards = document.createElement('div');
+            initialCards.classList.add('cards-container');
+            
+            // Add the actual cards
+            Object.keys(currentGame.gameState.battleCards).forEach(playerId => {
+                const card = currentGame.gameState.battleCards[playerId];
+                const player = currentGame.players[playerId];
+                
+                if (card && player) {
+                    const cardElement = document.createElement('div');
+                    cardElement.classList.add('player-card', 'initial-war-card');
+                    
+                    if (CARD_COLORS[card.suit] === 'red') {
+                        cardElement.classList.add('red');
+                    }
+                    
+                    cardElement.textContent = `${card.value}${card.suit}`;
+                    cardElement.dataset.playerId = playerId;
+                    cardElement.dataset.playerName = player.name;
+                    cardElement.dataset.cardValue = CARD_VALUES.indexOf(card.value);
+                    
+                    initialCards.appendChild(cardElement);
+                }
+            });
+            
+            initialCardsSection.appendChild(initialCards);
+            battleArea.appendChild(initialCardsSection);
+        }
+        // Regular battle cards (if not in war state)
+        else if (currentGame.gameState.battleCards) {
             Object.keys(currentGame.gameState.battleCards).forEach(playerId => {
                 const card = currentGame.gameState.battleCards[playerId];
                 const player = currentGame.players[playerId];
@@ -705,8 +746,23 @@ function updateGameBoard() {
             });
         }
         
-        // Show war cards if in war
-        if (currentGame.gameState.warState && currentGame.gameState.warCards) {
+        // Second section: War cards (if in war state)
+        if (currentGame.gameState.warState && currentGame.gameState.warCards && Object.keys(currentGame.gameState.warCards).length > 0) {
+            // Create a section for war cards
+            const warCardsSection = document.createElement('div');
+            warCardsSection.classList.add('war-cards-section');
+            
+            // Add a label
+            const warLabel = document.createElement('div');
+            warLabel.classList.add('cards-section-label');
+            warLabel.textContent = 'War Cards:';
+            warCardsSection.appendChild(warLabel);
+            
+            // Add the cards div
+            const warCardsContainer = document.createElement('div');
+            warCardsContainer.classList.add('cards-container');
+            
+            // Add the actual war cards
             Object.keys(currentGame.gameState.warCards).forEach(playerId => {
                 const card = currentGame.gameState.warCards[playerId];
                 const player = currentGame.players[playerId];
@@ -724,9 +780,12 @@ function updateGameBoard() {
                     cardElement.dataset.playerName = player.name;
                     cardElement.dataset.cardValue = CARD_VALUES.indexOf(card.value);
                     
-                    battleArea.appendChild(cardElement);
+                    warCardsContainer.appendChild(cardElement);
                 }
             });
+            
+            warCardsSection.appendChild(warCardsContainer);
+            battleArea.appendChild(warCardsSection);
         }
     }
     
@@ -843,13 +902,15 @@ function determineRoundWinner() {
             warCards: {}
         });
         
-        // Reset battle cards but keep track of them for the war
+        // Keep battle cards visible instead of resetting them (key change)
+        // Store them in warInitialCards and keep them in battleCards for display
         const warPot = Object.values(battleCards);
         
         // Store the war pot in the database
         updateGameState(currentGame.gameCode, {
             warPot: warPot,
-            battleCards: null
+            warInitialCards: battleCards // Store the initial tied cards
+            // Don't reset battleCards: battleCards: null - keep them visible
         });
         
         // After animation, prompt war players to play additional cards
@@ -1400,6 +1461,7 @@ function awardWarCardsToWinner(winnerId) {
         warState: false,
         warPlayers: null,
         warStage: null,
+        battleCards: null, // Clear battle cards only after war is resolved
         currentRound: (currentGame.gameState.currentRound || 0) + 1
     });
     
@@ -1534,4 +1596,63 @@ function checkGameEnd() {
             winner: lastPlayerWithCards
         });
     }
-} 
+}
+
+// Add this CSS directly in a <style> tag to the head of the document
+document.head.insertAdjacentHTML('beforeend', `
+<style>
+.cards-section-label {
+    font-size: 0.8rem;
+    color: #ccc;
+    margin: 5px 0;
+    text-align: center;
+}
+
+.cards-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.initial-battle-cards {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px dashed #444;
+}
+
+.war-cards-section {
+    margin-top: 20px;
+}
+
+.initial-war-card {
+    position: relative;
+}
+
+.initial-war-card::after {
+    content: '↓';
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #ff6b6b;
+    font-size: 20px;
+    text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+}
+
+.war-card {
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+    animation: pulse-war 2s infinite;
+}
+
+@keyframes pulse-war {
+    0% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); }
+    50% { box-shadow: 0 0 15px rgba(255, 0, 0, 0.8); }
+    100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); }
+}
+
+#war-animation {
+    z-index: 10;
+}
+</style>
+`); 
