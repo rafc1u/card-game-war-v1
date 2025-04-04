@@ -709,6 +709,20 @@ function updateGameBoard() {
             disablePlayButton();
         }
     }
+    
+    // EMERGENCY FIX: Extra check for war state button enabling
+    if (currentGame.gameState?.warState && 
+        currentGame.gameState?.warStage === 'war_cards' &&
+        currentGame.gameState?.warPlayers && 
+        currentGame.gameState?.warPlayers.includes(currentGame.playerId) &&
+        (!currentGame.gameState?.warCards || !currentGame.gameState?.warCards[currentGame.playerId]) &&
+        currentGame.myCards && 
+        currentGame.myCards.length > 0 &&
+        playCardBtn.disabled) {
+        
+        console.log('Emergency fix: Enabling play button in updateGameBoard during war');
+        enablePlayButton();
+    }
 }
 
 // Helper functions to properly enable/disable the play button
@@ -1114,6 +1128,19 @@ function showWarAnimation() {
     setTimeout(() => {
         if (!currentGame.gameState?.warState) {
             hideWarAnimation();
+        }
+        
+        // NEW: Force enable play button if we're in war cards stage and eligible to play
+        if (currentGame.gameState?.warState && 
+            currentGame.gameState?.warStage === 'war_cards' &&
+            currentGame.gameState?.warPlayers && 
+            currentGame.gameState?.warPlayers.includes(currentGame.playerId) &&
+            (!currentGame.gameState?.warCards || !currentGame.gameState?.warCards[currentGame.playerId]) &&
+            currentGame.myCards && 
+            currentGame.myCards.length > 0) {
+            
+            console.log('Emergency fix: Enabling play button during war');
+            enablePlayButton();
         }
     }, 3000);
 }
