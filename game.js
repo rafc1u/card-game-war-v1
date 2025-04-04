@@ -433,6 +433,10 @@ function handleExitGame() {
 
 // Game State Change Handler
 function handleGameStateChange(gameData) {
+    // Store the previous state for comparison
+    const previousWarStage = currentGame.gameState?.warStage;
+    
+    // Update the game state
     currentGame.gameState = gameData;
     
     // Update based on game status
@@ -447,6 +451,12 @@ function handleGameStateChange(gameData) {
         // Handle different war stages
         if (gameData.warState) {
             showWarAnimation();
+            
+            // Check for war state transition to war_cards
+            if (previousWarStage === 'war_declare' && gameData.warStage === 'war_cards') {
+                console.log('War stage changed from declare to cards - refreshing UI');
+                forceWarStateRefresh();
+            }
             
             // Check if all war players have played their cards
             if (gameData.warStage === 'war_cards' && 
@@ -652,20 +662,35 @@ function updateGameBoard() {
             });
             
             if (isWarPlayer && isWarCardsStage && hasNotPlayedWarCard) {
-                enablePlayButton();
+                if (playCardBtn.disabled) {
+                    console.log('Enabling war play button that was previously disabled');
+                    enablePlayButton();
+                }
             } else {
-                disablePlayButton();
+                if (!playCardBtn.disabled) {
+                    console.log('Disabling war play button that was previously enabled');
+                    disablePlayButton();
+                }
             }
         } else {
             // Regular play
             if (!currentGame.gameState.battleCards || !currentGame.gameState.battleCards[currentGame.playerId]) {
-                enablePlayButton();
+                if (playCardBtn.disabled) {
+                    console.log('Enabling regular play button that was previously disabled');
+                    enablePlayButton();
+                }
             } else {
-                disablePlayButton();
+                if (!playCardBtn.disabled) {
+                    console.log('Disabling regular play button that was previously enabled');
+                    disablePlayButton();
+                }
             }
         }
     } else {
-        disablePlayButton();
+        if (!playCardBtn.disabled) {
+            console.log('Disabling play button due to no cards');
+            disablePlayButton();
+        }
     }
 }
 
@@ -730,12 +755,17 @@ function determineRoundWinner() {
             updateGameState(currentGame.gameCode, {
                 warStage: 'war_cards',
                 message: 'War! Play your next card!'
+            })
+            .then(() => {
+                // Force a state update for all war players' play buttons
+                if (winningPlayers.includes(currentGame.playerId)) {
+                    console.log('Enabling play button for war player after state update');
+                    setTimeout(() => enablePlayButton(), 500);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating war stage:', error);
             });
-            
-            // Enable play button for war players
-            if (winningPlayers.includes(currentGame.playerId)) {
-                enablePlayButton();
-            }
         }, 3000);
     } else {
         // One clear winner - animate the victory
@@ -1025,13 +1055,17 @@ function resolveWarWinner() {
             setTimeout(() => {
                 updateGameState(currentGame.gameCode, {
                     warStage: 'war_cards'
+                })
+                .then(() => {
+                    // Force a state update for all war players' play buttons
+                    if (winningPlayers.includes(currentGame.playerId)) {
+                        console.log('Enabling play button for this player in continued war');
+                        setTimeout(() => enablePlayButton(), 500);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating war stage:', error);
                 });
-                
-                // Enable play button for war players
-                if (winningPlayers.includes(currentGame.playerId)) {
-                    console.log('Enabling play button for this player in continued war');
-                    enablePlayButton();
-                }
             }, 3000);
         }
     } else {
@@ -1055,6 +1089,29 @@ function resolveWarWinner() {
     }
 }
 
+// Add a function to force refresh the war state
+function forceWarStateRefresh() {
+    console.log('Forcing war state refresh');
+    if (currentGame.gameState && currentGame.gameState.warState) {
+        // Re-call updateGameBoard immediately
+        updateGameBoard();
+        
+        // Force a second check after a short delay to ensure Firebase data is current
+        setTimeout(() => {
+            if (currentGame.gameState && 
+                currentGame.gameState.warState && 
+                currentGame.gameState.warStage === 'war_cards' &&
+                currentGame.gameState.warPlayers && 
+                currentGame.gameState.warPlayers.includes(currentGame.playerId) &&
+                (!currentGame.gameState.warCards || !currentGame.gameState.warCards[currentGame.playerId])) {
+                
+                console.log('Delayed war state refresh - enabling play button');
+                enablePlayButton();
+            }
+        }, 1000);
+    }
+}
+
 // Show War Animation
 function showWarAnimation() {
     warAnimation.classList.remove('hidden');
@@ -1068,6 +1125,9 @@ function showWarAnimation() {
     setTimeout(() => {
         if (!currentGame.gameState?.warState) {
             hideWarAnimation();
+        } else if (currentGame.gameState?.warStage === 'war_cards') {
+            // Force a refresh if we're in the war_cards stage
+            forceWarStateRefresh();
         }
     }, 3000);
 }
