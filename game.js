@@ -1220,4 +1220,83 @@ function awardCardsToWinner(winnerId) {
     
     // Check for game end
     checkGameEnd();
+}
+
+// Create a deck of cards
+function createDeck() {
+    const deck = [];
+    
+    for (const suit of CARD_SUITS) {
+        for (const value of CARD_VALUES) {
+            deck.push({
+                suit,
+                value
+            });
+        }
+    }
+    
+    return deck;
+}
+
+// Shuffle the deck
+function shuffleDeck(deck) {
+    const shuffled = [...deck];
+    
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    return shuffled;
+}
+
+// Deal cards to players
+function dealCards(deck, playerIds) {
+    const dealtCards = {};
+    
+    // Initialize empty arrays for each player
+    playerIds.forEach(playerId => {
+        dealtCards[playerId] = [];
+    });
+    
+    // Deal cards one at a time to each player
+    let currentPlayerIndex = 0;
+    
+    for (const card of deck) {
+        const playerId = playerIds[currentPlayerIndex];
+        dealtCards[playerId].push(card);
+        
+        currentPlayerIndex = (currentPlayerIndex + 1) % playerIds.length;
+    }
+    
+    return dealtCards;
+}
+
+// Check Game End
+function checkGameEnd() {
+    if (!currentGame.players) return;
+    
+    // Count players with cards
+    let playersWithCards = 0;
+    let lastPlayerWithCards = null;
+    
+    Object.keys(currentGame.players).forEach(playerId => {
+        const player = currentGame.players[playerId];
+        if (player.cards && player.cards.length > 0) {
+            playersWithCards++;
+            lastPlayerWithCards = playerId;
+        }
+    });
+    
+    // If only one player has cards, they win
+    if (playersWithCards === 1) {
+        const winnerName = currentGame.players[lastPlayerWithCards].name;
+        alert(`Game Over! ${winnerName} wins!`);
+        
+        // End the game
+        updateGameState(currentGame.gameCode, {
+            status: 'ended',
+            winner: lastPlayerWithCards
+        });
+    }
 } 
