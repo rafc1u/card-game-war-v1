@@ -455,7 +455,6 @@ function handleGameStateChange(gameData) {
             // Check for war state transition to war_cards
             if (previousWarStage === 'war_declare' && gameData.warStage === 'war_cards') {
                 console.log('War stage changed from declare to cards - refreshing UI');
-                forceWarStateRefresh();
             }
             
             // Check if all war players have played their cards
