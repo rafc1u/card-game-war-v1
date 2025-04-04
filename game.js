@@ -756,13 +756,6 @@ function determineRoundWinner() {
                 warStage: 'war_cards',
                 message: 'War! Play your next card!'
             })
-            .then(() => {
-                // Force a state update for all war players' play buttons
-                if (winningPlayers.includes(currentGame.playerId)) {
-                    console.log('Enabling play button for war player after state update');
-                    setTimeout(() => enablePlayButton(), 500);
-                }
-            })
             .catch(error => {
                 console.error('Error updating war stage:', error);
             });
@@ -1056,13 +1049,6 @@ function resolveWarWinner() {
                 updateGameState(currentGame.gameCode, {
                     warStage: 'war_cards'
                 })
-                .then(() => {
-                    // Force a state update for all war players' play buttons
-                    if (winningPlayers.includes(currentGame.playerId)) {
-                        console.log('Enabling play button for this player in continued war');
-                        setTimeout(() => enablePlayButton(), 500);
-                    }
-                })
                 .catch(error => {
                     console.error('Error updating war stage:', error);
                 });
@@ -1089,29 +1075,6 @@ function resolveWarWinner() {
     }
 }
 
-// Add a function to force refresh the war state
-function forceWarStateRefresh() {
-    console.log('Forcing war state refresh');
-    if (currentGame.gameState && currentGame.gameState.warState) {
-        // Re-call updateGameBoard immediately
-        updateGameBoard();
-        
-        // Force a second check after a short delay to ensure Firebase data is current
-        setTimeout(() => {
-            if (currentGame.gameState && 
-                currentGame.gameState.warState && 
-                currentGame.gameState.warStage === 'war_cards' &&
-                currentGame.gameState.warPlayers && 
-                currentGame.gameState.warPlayers.includes(currentGame.playerId) &&
-                (!currentGame.gameState.warCards || !currentGame.gameState.warCards[currentGame.playerId])) {
-                
-                console.log('Delayed war state refresh - enabling play button');
-                enablePlayButton();
-            }
-        }, 1000);
-    }
-}
-
 // Show War Animation
 function showWarAnimation() {
     warAnimation.classList.remove('hidden');
@@ -1125,9 +1088,6 @@ function showWarAnimation() {
     setTimeout(() => {
         if (!currentGame.gameState?.warState) {
             hideWarAnimation();
-        } else if (currentGame.gameState?.warStage === 'war_cards') {
-            // Force a refresh if we're in the war_cards stage
-            forceWarStateRefresh();
         }
     }, 3000);
 }
