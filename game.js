@@ -65,6 +65,29 @@ document.addEventListener('keydown', function(event) {
         console.log('WAR MODE ACTIVATED: Next cards will be identical to force war!');
         alert('WAR MODE ACTIVATED: Next cards will be identical!');
     }
+    
+    // NEW: Add space bar as an alternative way to play a card during war
+    if (event.key === ' ' || event.key === 'Enter') {
+        if (currentGame.gameState?.warState && 
+            currentGame.gameState?.warStage === 'war_cards' &&
+            currentGame.gameState?.warPlayers?.includes(currentGame.playerId) &&
+            (!currentGame.gameState?.warCards || !currentGame.gameState?.warCards[currentGame.playerId])) {
+            
+            console.log('Emergency: Playing war card via keyboard shortcut');
+            handleWarPlayCard();
+        }
+    }
+    
+    // NEW: Force enable play button with F key
+    if (event.key.toLowerCase() === 'f') {
+        if (currentGame.gameState?.warState) {
+            console.log('FORCE ENABLE: Manually enabling play button');
+            document.getElementById('play-card').disabled = false;
+            document.getElementById('play-card').classList.remove('disabled-button');
+            currentGame.isPlayingCard = false;
+            alert('Play button forcibly enabled. Try clicking it now.');
+        }
+    }
 });
 
 // Setup App Check after Firebase is initialized
@@ -570,7 +593,41 @@ function setupGameBoard() {
         
         const cardDisplay = document.createElement('div');
         cardDisplay.classList.add('player-card', 'card-back');
-        cardDisplay.textContent = '🃏';
+        cardDisplay.textContent = '��';
+        
+        // NEW: Add click handler to card back as alternative to button
+        if (playerId === currentGame.playerId) {
+            cardDisplay.style.cursor = 'pointer';
+            cardDisplay.addEventListener('click', function() {
+                if (currentGame.gameState?.warState && 
+                    currentGame.gameState?.warStage === 'war_cards' &&
+                    currentGame.gameState?.warPlayers?.includes(currentGame.playerId) &&
+                    (!currentGame.gameState?.warCards || !currentGame.gameState?.warCards[currentGame.playerId])) {
+                    
+                    console.log('Emergency: Playing war card via card click');
+                    handleWarPlayCard();
+                } else if (!playCardBtn.disabled) {
+                    handlePlayCard();
+                }
+            });
+            
+            // Add hover effect
+            cardDisplay.addEventListener('mouseover', function() {
+                if ((currentGame.gameState?.warState && 
+                     currentGame.gameState?.warStage === 'war_cards' &&
+                     currentGame.gameState?.warPlayers?.includes(currentGame.playerId) &&
+                     (!currentGame.gameState?.warCards || !currentGame.gameState?.warCards[currentGame.playerId])) ||
+                    !playCardBtn.disabled) {
+                    this.style.transform = 'scale(1.1)';
+                    this.style.boxShadow = '0 0 10px gold';
+                }
+            });
+            
+            cardDisplay.addEventListener('mouseout', function() {
+                this.style.transform = '';
+                this.style.boxShadow = '';
+            });
+        }
         
         playerBox.appendChild(playerName);
         playerBox.appendChild(playerCards);
@@ -578,6 +635,20 @@ function setupGameBoard() {
         
         playersArea.appendChild(playerBox);
     });
+    
+    // Add war instructions
+    const warInstructions = document.createElement('div');
+    warInstructions.id = 'war-instructions';
+    warInstructions.classList.add('hidden');
+    warInstructions.innerHTML = `
+        <p>WAR! Play your next card or:</p>
+        <ul>
+            <li>Click your card directly</li>
+            <li>Press SPACE or ENTER</li>
+            <li>Press F to force-enable button</li>
+        </ul>
+    `;
+    document.getElementById('game-screen').appendChild(warInstructions);
 }
 
 // Update Game Board
@@ -959,15 +1030,20 @@ function animateCardsToWinner(winnerId, cardElements) {
 
 // Handle War Mechanics
 function handleWarPlayCard() {
-    // Prevent clicks if button is disabled OR a play is already in progress
-    if (playCardBtn.disabled || currentGame.isPlayingCard) {
+    console.log('handleWarPlayCard called');
+    
+    // NEW: Skip the disabled check in war mode - force it
+    if (currentGame.gameState?.warState && playCardBtn.disabled) {
+        console.log('Emergency override: Ignoring disabled button state for war');
+        // Continue execution even if button appears disabled
+    }
+    // Otherwise use regular check
+    else if (!currentGame.gameState?.warState && (playCardBtn.disabled || currentGame.isPlayingCard)) {
         return;
     }
     
     // Set the playing state to true
     currentGame.isPlayingCard = true;
-    
-    // Disable button immediately to prevent double-clicks
     disablePlayButton();
 
     if (!currentGame.myCards || currentGame.myCards.length === 0) {
@@ -1005,11 +1081,14 @@ function handleWarPlayCard() {
     updatedCards.shift();
     currentGame.myCards = updatedCards;
     
+    console.log('Submitting war card to database', cardCopy);
+    
     // Add to war cards in database
     const warCardRef = database.ref(`games/${currentGame.gameCode}/warCards/${currentGame.playerId}`);
     warCardRef.set(cardCopy)
         .then(() => {
             // Then update my cards in database
+            console.log('Successfully set war card, updating player cards');
             return updatePlayerState(currentGame.gameCode, currentGame.playerId, {
                 cards: updatedCards
             });
@@ -1124,13 +1203,33 @@ function showWarAnimation() {
         createBloodDrop();
     }
     
+    // Show war instructions
+    const warInstructions = document.getElementById('war-instructions');
+    if (warInstructions) {
+        warInstructions.classList.remove('hidden');
+    }
+    
+    // NEW: More aggressive button enabling - force DOM state directly
+    setTimeout(() => {
+        if (currentGame.gameState?.warState && 
+            currentGame.gameState?.warStage === 'war_cards' &&
+            currentGame.gameState?.warPlayers?.includes(currentGame.playerId) &&
+            (!currentGame.gameState?.warCards || !currentGame.gameState?.warCards[currentGame.playerId])) {
+            
+            console.log('CRITICAL FIX: Direct DOM manipulation to enable play button');
+            document.getElementById('play-card').disabled = false;
+            document.getElementById('play-card').classList.remove('disabled-button');
+            currentGame.isPlayingCard = false;
+        }
+    }, 3500); // Wait a bit longer than the animation
+    
     // Automatically hide war animation after 3 seconds in case it gets stuck
     setTimeout(() => {
         if (!currentGame.gameState?.warState) {
             hideWarAnimation();
         }
         
-        // NEW: Force enable play button if we're in war cards stage and eligible to play
+        // Force enable play button if we're in war cards stage and eligible to play
         if (currentGame.gameState?.warState && 
             currentGame.gameState?.warStage === 'war_cards' &&
             currentGame.gameState?.warPlayers && 
@@ -1141,6 +1240,10 @@ function showWarAnimation() {
             
             console.log('Emergency fix: Enabling play button during war');
             enablePlayButton();
+            
+            // NEW: Direct DOM manipulation as a failsafe
+            document.getElementById('play-card').disabled = false;
+            document.getElementById('play-card').classList.remove('disabled-button');
         }
     }, 3000);
 }
@@ -1148,6 +1251,12 @@ function showWarAnimation() {
 // Hide War Animation
 function hideWarAnimation() {
     warAnimation.classList.add('hidden');
+    
+    // Hide war instructions
+    const warInstructions = document.getElementById('war-instructions');
+    if (warInstructions) {
+        warInstructions.classList.add('hidden');
+    }
     
     // Remove blood drops
     document.querySelectorAll('.blood').forEach(drop => {
