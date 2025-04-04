@@ -1248,20 +1248,26 @@ function resetGameState() {
 }
 
 // Screen navigation functions
+function showScreen(screenToShow) {
+    // Hide all screens first
+    [welcomeScreen, lobbyScreen, gameScreen].forEach(screen => {
+        screen.classList.add('hidden');
+    });
+    
+    // Show the target screen after a short delay for fade-out
+    setTimeout(() => {
+        screenToShow.classList.remove('hidden');
+    }, 50); // Delay slightly less than transition duration
+}
+
 function showWelcomeScreen() {
-    welcomeScreen.classList.remove('hidden');
-    lobbyScreen.classList.add('hidden');
-    gameScreen.classList.add('hidden');
+    showScreen(welcomeScreen);
 }
 
 function showLobbyScreen() {
-    welcomeScreen.classList.add('hidden');
-    lobbyScreen.classList.remove('hidden');
-    gameScreen.classList.add('hidden');
+    showScreen(lobbyScreen);
 }
 
 function showGameScreen() {
-    welcomeScreen.classList.add('hidden');
-    lobbyScreen.classList.add('hidden');
-    gameScreen.classList.remove('hidden');
+    showScreen(gameScreen);
 } 
