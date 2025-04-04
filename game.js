@@ -124,13 +124,17 @@ function checkAppCheckBeforeOperation(operation, fallback = null) {
 
 // Initialize - check URL for game code and setup App Check
 document.addEventListener('DOMContentLoaded', () => {
-    // Setup App Check after Firebase is initialized
+    // Give App Check a moment to initialize first
     setTimeout(() => {
         setupAppCheck();
-    }, 1000);
-    
-    // Check URL for game code
-    checkUrlForGameCode();
+        
+        // Now attempt to check for and join a game via URL code
+        // This ensures setupAppCheck has likely run and set appCheckVerified
+        setTimeout(() => {
+            checkUrlForGameCode();
+        }, 200); // Short delay after App Check setup attempted
+
+    }, 1000); // Initial delay for Firebase/AppCheck scripts
 });
 
 // Copy URL Handler
